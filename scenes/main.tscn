@@ -34,6 +34,4 @@ position = Vector2(125, 448)
 maxSpeed = 300.0
 jumpHeight = 2.5
 gravityScale = 30.0
-walk = true
-slide = true
 latch = true

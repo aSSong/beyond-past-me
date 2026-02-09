@@ -15,8 +15,12 @@ class_name PlatformerController2D
 
 #INFO HORIZONTAL MOVEMENT 
 @export_category("L/R Movement")
+##The initial speed your player will have at the start of the game (for parkour/endless runner games)
+@export_range(0, 500) var initialSpeed: float = 100.0
 ##The max speed your player will move
 @export_range(50, 500) var maxSpeed: float = 200.0
+##The minimum speed when pressing left key to brake
+@export_range(0, 500) var minSpeed: float = 50.0
 ##How fast your player will reach max speed from rest (in seconds)
 @export_range(0, 4) var timeToReachMaxSpeed: float = 0.2
 ##How fast your player will reach zero speed from max speed (in seconds)
@@ -25,6 +29,14 @@ class_name PlatformerController2D
 @export var directionalSnap: bool = false
 ##If enabled, the default movement speed will by 1/2 of the maxSpeed and the player must hold a "run" button to accelerate to max speed. Assign "run" (case sensitive) in the project input settings.
 @export var runningModifier: bool = false
+##How fast (per second) speed increases when pressing right key
+@export_range(0, 1000) var speedUpRate: float = 150.0
+##How fast (per second) speed decreases when pressing left key
+@export_range(0, 1000) var slowDownRate: float = 200.0
+##How fast (per second) speed returns to initialSpeed when no input is pressed
+@export_range(0, 1000) var returnToInitialRate: float = 100.0
+##Speed threshold: below this plays "walk" animation, at or above plays "run" animation
+@export_range(0, 500) var walkSpeed: float = 120.0
 
 #INFO JUMPING 
 @export_category("Jumping and Gravity")
@@ -80,17 +92,18 @@ class_name PlatformerController2D
 ##Raycast used for corner cutting calculations. Place above and to the right of the players head point up. ALL ARE NEEDED FOR IT TO WORK.
 @export var rightRaycast: RayCast2D
 @export_category("Down Input")
-##Holding down will crouch the player. Crouching script may need to be changed depending on how your player's size proportions are. It is built for 32x player's sprites.
-@export var crouch: bool = false
-##Holding down and pressing the input for "roll" will execute a roll if the player is grounded. Assign a "roll" input in project settings input.
+##Holding down and pressing the input for "roll" will execute a roll if the player is grounded.
 @export var canRoll: bool
-@export_range(1.25, 2) var rollLength: float = 2
 ##If enabled, the player will stop all horizontal movement midair, wait (groundPoundPause) seconds, and then slam down into the ground when down is pressed. 
 @export var groundPound: bool
 ##The amount of time the player will hover in the air before completing a ground pound (in seconds)
 @export_range(0.05, 0.75) var groundPoundPause: float = 0.25
 ##If enabled, pressing up will end the ground pound early
 @export var upToCancel: bool = false
+##Time threshold (seconds) to distinguish short press (roll) from hold (slide) on down key
+@export_range(0.05, 1.0) var rollSlideThreshold: float = 0.2
+##Maximum duration (seconds) the player can slide before automatically exiting
+@export_range(0.5, 5.0) var maxSlideTime: float = 1.5
 
 @export_category("Animations (Check Box if has animation)")
 ##Animations must be named "run" all lowercase as the check box says
@@ -107,10 +120,6 @@ class_name PlatformerController2D
 @export var latch: bool
 ##Animations must be named "falling" all lowercase as the check box says
 @export var falling: bool
-##Animations must be named "crouch_idle" all lowercase as the check box says
-@export var crouch_idle: bool
-##Animations must be named "crouch_walk" all lowercase as the check box says
-@export var crouch_walk: bool
 ##Animations must be named "roll" all lowercase as the check box says
 @export var roll: bool
 
@@ -136,6 +145,11 @@ var gravityActive: bool = true
 var dashing: bool = false
 var dashCount: int
 var rolling: bool = false
+var is_sliding: bool = false
+var down_press_timer: float = 0.0
+var down_is_held: bool = false
+var down_triggered_roll: bool = false
+var slide_timer: float = 0.0
 
 var twoWayDashHorizontal
 var twoWayDashVertical
@@ -151,10 +165,10 @@ var dset = false
 
 var colliderScaleLockY
 var colliderPosLockY
+var colliderCrouchPosY
 
 var latched
 var wasLatched
-var crouching
 var groundPounding
 
 var anim
@@ -177,6 +191,7 @@ var latchHold
 var dashTap
 var rollTap
 var downTap
+var downRelease
 var twirlTap
 
 func _ready():
@@ -185,6 +200,9 @@ func _ready():
 	col = PlayerCollider
 	
 	_updateData()
+	
+	# Set initial speed for parkour/endless runner games
+	velocity.x = initialSpeed
 	
 func _updateData():
 	acceleration = maxSpeed / timeToReachMaxSpeed
@@ -201,6 +219,10 @@ func _updateData():
 	animScaleLock = abs(anim.scale)
 	colliderScaleLockY = col.scale.y
 	colliderPosLockY = col.position.y
+	# Calculate crouch/slide position: keep collider bottom edge at the same place as standing
+	# Standing bottom = colliderPosLockY + (shape.height / 2) * colliderScaleLockY
+	# Crouch bottom should equal standing bottom, with scale halved
+	colliderCrouchPosY = colliderPosLockY + col.shape.height / 4.0 * colliderScaleLockY
 	
 	if timeToReachMaxSpeed == 0:
 		instantAccel = true
@@ -251,7 +273,7 @@ func _updateData():
 
 func _process(_delta):
 	#INFO animations
-	#directions
+	#wall latch detection
 	if is_on_wall() and !is_on_floor() and latch and wallLatching and ((wallLatchingModifer and latchHold) or !wallLatchingModifer):
 		latched = true
 	else:
@@ -259,68 +281,47 @@ func _process(_delta):
 		wasLatched = true
 		_setLatch(0.2, false)
 
-	if rightHold and !latched:
-		anim.scale.x = animScaleLock.x
-	if leftHold and !latched:
-		anim.scale.x = animScaleLock.x * -1
+	# Parkour mode: always face right
+	anim.scale.x = animScaleLock.x
 	
-	#run
-	if run and idle and !dashing and !crouching:
-		if abs(velocity.x) > 0.1 and is_on_floor() and !is_on_wall():
-			anim.speed_scale = abs(velocity.x / 150)
-			anim.play("run")
-		elif abs(velocity.x) < 0.1 and is_on_floor():
-			anim.speed_scale = 1
-			anim.play("idle")
-	elif run and idle and walk and !dashing and !crouching:
-		if abs(velocity.x) > 0.1 and is_on_floor() and !is_on_wall():
-			anim.speed_scale = abs(velocity.x / 150)
-			if abs(velocity.x) < (maxSpeedLock):
-				anim.play("walk")
-			else:
-				anim.play("run")
-		elif abs(velocity.x) < 0.1 and is_on_floor():
-			anim.speed_scale = 1
-			anim.play("idle")
-		
-	#jump
-	if velocity.y < 0 and jump and !dashing:
+	# Rolling animation (highest priority, one-shot)
+	if rolling and roll:
+		anim.speed_scale = 1
+		anim.play("roll")
+	# Sliding animation (ground slide)
+	elif is_sliding and slide and !dashing:
+		anim.speed_scale = 1
+		anim.play("slide")
+	# Dashing animation
+	elif dashing:
+		anim.speed_scale = 1
+		anim.play("dash")
+	# Wall latch
+	elif latch and latched and !wasLatched:
+		anim.speed_scale = 1
+		anim.play("latch")
+	# Jump
+	elif velocity.y < 0 and jump:
 		anim.speed_scale = 1
 		anim.play("jump")
-		
-	if velocity.y > 40 and falling and !dashing and !crouching:
+	# Falling
+	elif velocity.y > 40 and falling:
 		anim.speed_scale = 1
 		anim.play("falling")
-		
-	if latch and slide:
-		#wall slide and latch
-		if latched and !wasLatched:
+	# Walk / Run / Idle on floor
+	elif is_on_floor():
+		if abs(velocity.x) > 0.1 and !is_on_wall():
+			anim.speed_scale = abs(velocity.x / 150)
+			if abs(velocity.x) >= walkSpeed and run:
+				anim.play("run")
+			elif walk:
+				anim.play("walk")
+			elif run:
+				anim.play("run")
+		elif idle:
 			anim.speed_scale = 1
-			anim.play("latch")
-		if is_on_wall() and velocity.y > 0 and slide and anim.animation != "slide" and wallSliding != 1:
-			anim.speed_scale = 1
-			anim.play("slide")
-			
-		#dash
-		if dashing:
-			anim.speed_scale = 1
-			anim.play("dash")
-			
-		#crouch
-		if crouching and !rolling:
-			if abs(velocity.x) > 10:
-				anim.speed_scale = 1
-				anim.play("crouch_walk")
-			else:
-				anim.speed_scale = 1
-				anim.play("crouch_idle")
-		
-		if rollTap and canRoll and roll:
-			anim.speed_scale = 1
-			anim.play("roll")
-		
-		
-		
+			anim.play("idle")
+
 
 func _physics_process(delta):
 	if !dset:
@@ -342,42 +343,29 @@ func _physics_process(delta):
 	dashTap = Input.is_action_just_pressed("dash")
 	rollTap = Input.is_action_just_pressed("roll")
 	downTap = Input.is_action_just_pressed("down")
+	downRelease = Input.is_action_just_released("down")
 	twirlTap = Input.is_action_just_pressed("twirl")
 	
+	#INFO Left and Right Movement (Parkour Mode - Always moving forward)
+	if !dashing:
+		if rightHold and movementInputMonitoring.x:
+			# Right key - accelerate toward maxSpeed
+			velocity.x = min(velocity.x + speedUpRate * delta, maxSpeed)
+		elif leftHold and movementInputMonitoring.y:
+			# Left key - decelerate toward minSpeed
+			velocity.x = max(velocity.x - slowDownRate * delta, minSpeed)
+		else:
+			# No input - return toward initialSpeed
+			if velocity.x > initialSpeed:
+				velocity.x = max(velocity.x - returnToInitialRate * delta, initialSpeed)
+			elif velocity.x < initialSpeed:
+				velocity.x = min(velocity.x + returnToInitialRate * delta, initialSpeed)
 	
-	#INFO Left and Right Movement
+	# Ensure speed never drops below minSpeed
+	velocity.x = max(velocity.x, minSpeed)
 	
-	if rightHold and leftHold and movementInputMonitoring:
-		if !instantStop:
-			_decelerate(delta, false)
-		else:
-			velocity.x = -0.1
-	elif rightHold and movementInputMonitoring.x:
-		if velocity.x > maxSpeed or instantAccel:
-			velocity.x = maxSpeed
-		else:
-			velocity.x += acceleration * delta
-		if velocity.x < 0:
-			if !instantStop:
-				_decelerate(delta, false)
-			else:
-				velocity.x = -0.1
-	elif leftHold and movementInputMonitoring.y:
-		if velocity.x < -maxSpeed or instantAccel:
-			velocity.x = -maxSpeed
-		else:
-			velocity.x -= acceleration * delta
-		if velocity.x > 0:
-			if !instantStop:
-				_decelerate(delta, false)
-			else:
-				velocity.x = 0.1
-				
-	if velocity.x > 0:
-		wasMovingR = true
-	elif velocity.x < 0:
-		wasMovingR = false
-		
+	# Always moving right in parkour mode
+	wasMovingR = true
 	if rightTap:
 		wasPressingR = true
 	if leftTap:
@@ -387,51 +375,51 @@ func _physics_process(delta):
 		maxSpeed = maxSpeedLock / 2
 	elif is_on_floor(): 
 		maxSpeed = maxSpeedLock
+			
+	#INFO Roll/Slide State Machine (Down key)
+	# Start tracking DOWN when pressed on floor
+	if is_on_floor() and downTap and !rolling:
+		down_press_timer = 0.0
+		down_is_held = true
+		down_triggered_roll = false
 	
-	if !(leftHold or rightHold):
-		if !instantStop:
-			_decelerate(delta, false)
-		else:
-			velocity.x = 0
-			
-	#INFO Crouching
-	if crouch:
-		if downHold and is_on_floor():
-			crouching = true
-		elif !downHold and ((runHold and runningModifier) or !runningModifier) and !rolling:
-			crouching = false
-			
-	if !is_on_floor():
-		crouching = false
-			
-	if crouching:
-		maxSpeed = maxSpeedLock / 2
+	# Accumulate timer while held on floor
+	if down_is_held and downHold and is_on_floor():
+		down_press_timer += delta
+		if down_press_timer > rollSlideThreshold and !is_sliding:
+			# Hold past threshold - enter slide state
+			is_sliding = true
+			slide_timer = 0.0
+	
+	# Count slide duration and auto-exit when exceeding max time
+	if is_sliding:
+		slide_timer += delta
+		if slide_timer >= maxSlideTime:
+			is_sliding = false
+			down_is_held = false
+	
+	# Down released (or no longer held) - check for roll or exit slide
+	if down_is_held and !downHold:
+		if down_press_timer <= rollSlideThreshold and !down_triggered_roll and is_on_floor() and canRoll:
+			# Short press - trigger roll (only animation + collider, no speed change)
+			down_triggered_roll = true
+			_start_roll()
+		# Exit slide state
+		is_sliding = false
+		down_is_held = false
+	
+	# Cancel slide if genuinely airborne (not holding down)
+	if !is_on_floor() and !downHold:
+		is_sliding = false
+		down_is_held = false
+	
+	# Apply collider changes for slide or roll (bottom edge stays at same position)
+	if is_sliding or rolling:
 		col.scale.y = colliderScaleLockY / 2
-		col.position.y = colliderPosLockY + (8 * colliderScaleLockY)
+		col.position.y = colliderCrouchPosY
 	else:
-		maxSpeed = maxSpeedLock
 		col.scale.y = colliderScaleLockY
 		col.position.y = colliderPosLockY
-		
-	#INFO Rolling
-	if canRoll and is_on_floor() and rollTap and crouching:
-		_rollingTime(0.75)
-		if wasPressingR and !(upHold):
-			velocity.y = 0
-			velocity.x = maxSpeedLock * rollLength
-			dashCount += -1
-			movementInputMonitoring = Vector2(false, false)
-			_inputPauseReset(rollLength * 0.0625)
-		elif !(upHold):
-			velocity.y = 0
-			velocity.x = -maxSpeedLock * rollLength
-			dashCount += -1
-			movementInputMonitoring = Vector2(false, false)
-			_inputPauseReset(rollLength * 0.0625)
-		
-	if canRoll and rolling:
-		#if you want your player to become immune or do something else while rolling, add that here.
-		pass
 			
 	#INFO Jump and Gravity
 	if velocity.y > 0:
@@ -647,10 +635,23 @@ func _dashingTime(time):
 	await get_tree().create_timer(time).timeout
 	dashing = false
 
-func _rollingTime(time):
+func _start_roll():
+	# Roll duration is determined by the roll animation's actual length
+	var duration = _get_anim_duration("roll")
 	rolling = true
-	await get_tree().create_timer(time).timeout
-	rolling = false	
+	await get_tree().create_timer(duration).timeout
+	rolling = false
+
+func _get_anim_duration(anim_name: String) -> float:
+	var frames = anim.sprite_frames
+	var count = frames.get_frame_count(anim_name)
+	var speed = frames.get_animation_speed(anim_name)
+	if speed <= 0:
+		return 0.5
+	var total = 0.0
+	for i in range(count):
+		total += frames.get_frame_duration(anim_name, i)
+	return total / speed
 
 func _groundPound():
 	appliedTerminalVelocity = terminalVelocity * 10
