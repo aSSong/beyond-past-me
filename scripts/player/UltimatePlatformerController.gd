@@ -153,6 +153,7 @@ var down_is_held: bool = false
 var down_triggered_roll: bool = false
 var slide_timer: float = 0.0
 var roll_start_velocity: float = 0.0  # Store velocity at roll start
+var was_rolling_or_sliding: bool = false  # Track if we just finished roll/slide
 
 var twoWayDashHorizontal
 var twoWayDashVertical
@@ -403,6 +404,7 @@ func _physics_process(delta):
 		if slide_timer >= maxSlideTime:
 			is_sliding = false
 			down_is_held = false
+			was_rolling_or_sliding = true  # Mark that we just finished sliding
 	
 	# Down released (or no longer held) - check for roll or exit slide
 	if down_is_held and !downHold:
@@ -411,6 +413,8 @@ func _physics_process(delta):
 			down_triggered_roll = true
 			_start_roll()
 		# Exit slide state
+		if is_sliding:
+			was_rolling_or_sliding = true  # Mark that we just finished sliding
 		is_sliding = false
 		down_is_held = false
 	
@@ -419,15 +423,28 @@ func _physics_process(delta):
 		is_sliding = false
 		down_is_held = false
 	
-	# Switch collision shapes: use half when on floor and pressing down, or during roll/slide
-	if is_on_floor() and downHold and !groundPounding:
-		# Immediately switch to half collision when pressing down on floor
+	# Switch collision shapes: prioritize roll/slide state
+	# During roll/slide: always use half
+	# After roll/slide ends: use full even if down is still held (until down is released or new roll/slide starts)
+	# When pressing down on floor (but not in roll/slide and not just finished): use half
+	if is_sliding or rolling:
+		# Keep half collision during roll or slide
+		was_rolling_or_sliding = false  # Reset flag when entering roll/slide
 		if CollisionFull:
 			CollisionFull.disabled = true
 		if CollisionHalf:
 			CollisionHalf.disabled = false
-	elif is_sliding or rolling:
-		# Keep half collision during roll or slide
+	elif was_rolling_or_sliding:
+		# After roll/slide ends, use full collision even if down is still held
+		if CollisionFull:
+			CollisionFull.disabled = false
+		if CollisionHalf:
+			CollisionHalf.disabled = true
+		# Reset flag when down is released, allowing normal behavior again
+		if !downHold:
+			was_rolling_or_sliding = false
+	elif is_on_floor() and downHold and !groundPounding:
+		# Immediately switch to half collision when pressing down on floor (but not during/after roll/slide)
 		if CollisionFull:
 			CollisionFull.disabled = true
 		if CollisionHalf:
@@ -438,6 +455,9 @@ func _physics_process(delta):
 			CollisionFull.disabled = false
 		if CollisionHalf:
 			CollisionHalf.disabled = true
+		# Reset flag when not holding down
+		if !downHold:
+			was_rolling_or_sliding = false
 			
 	#INFO Jump and Gravity
 	if velocity.y > 0:
@@ -685,15 +705,13 @@ func _endGroundPound():
 	gravityActive = true
 
 func _on_roll_end():
+	# Mark that roll just finished
+	was_rolling_or_sliding = true
 	# Ensure velocity is maintained after roll ends (prevent sudden stop)
 	# Only restore if no input is being held, otherwise let normal movement logic handle it
 	if !rightHold and !leftHold:
 		velocity.x = max(roll_start_velocity, minSpeed)
-	# Ensure collision shape is properly switched
-	if CollisionFull:
-		CollisionFull.disabled = false
-	if CollisionHalf:
-		CollisionHalf.disabled = true
+	# Collision shape will be switched in _physics_process based on was_rolling_or_sliding flag
 
 func _placeHolder():
 	print("")
