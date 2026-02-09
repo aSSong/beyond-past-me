@@ -31,7 +31,9 @@ texture = ExtResource("1_sugp2")
 [node name="player" parent="." unique_id=1636683765 instance=ExtResource("3_sugp2")]
 z_index = 10
 position = Vector2(125, 448)
-maxSpeed = 300.0
+scale = Vector2(1.5, 1.5)
+maxSpeed = 500.0
 jumpHeight = 2.5
 gravityScale = 30.0
+rollSlideThreshold = 0.15000000000000002
 latch = true

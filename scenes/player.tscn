@@ -5,6 +5,7 @@
 [ext_resource type="Texture2D" uid="uid://xk0frtudpy3n" path="res://assets/2D-Pixel-Art-Character-Template/Crouch-Idle/Player Crouch-Idle 48x48.png" id="2_dqkch"]
 [ext_resource type="Texture2D" uid="uid://c380w6wpikn6t" path="res://assets/2D-Pixel-Art-Character-Template/Idle/Player Idle 48x48.png" id="2_qhqgy"]
 [ext_resource type="Texture2D" uid="uid://gvdxyjh83akc" path="res://assets/2D-Pixel-Art-Character-Template/Crouch-Walk/player crouch-walk 48x48.png" id="3_qlg0r"]
+[ext_resource type="Texture2D" uid="uid://chqsu4sc81tw5" path="res://assets/2D-Pixel-Art-Character-Template/Dash/dash.png" id="4_y4r1p"]
 [ext_resource type="Texture2D" uid="uid://daldno7lprsrb" path="res://assets/2D-Pixel-Art-Character-Template/Jump/player new jump 48x48.png" id="5_tuyoq"]
 [ext_resource type="Texture2D" uid="uid://dytwyq0m46xf6" path="res://assets/2D-Pixel-Art-Character-Template/Roll/Player Roll 48x48.png" id="6_fjrip"]
 [ext_resource type="Texture2D" uid="uid://brcqddpd5ltlv" path="res://assets/2D-Pixel-Art-Character-Template/Walk/PlayerWalk 48x48.png" id="8_smehm"]
@@ -93,6 +94,42 @@ region = Rect2(384, 0, 48, 48)
 [sub_resource type="AtlasTexture" id="AtlasTexture_487ah"]
 atlas = ExtResource("3_qlg0r")
 region = Rect2(432, 0, 48, 48)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_51ujp"]
+atlas = ExtResource("4_y4r1p")
+region = Rect2(0, 0, 48, 48)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_tk41t"]
+atlas = ExtResource("4_y4r1p")
+region = Rect2(48, 0, 48, 48)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_fuw3a"]
+atlas = ExtResource("4_y4r1p")
+region = Rect2(96, 0, 48, 48)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_8txt3"]
+atlas = ExtResource("4_y4r1p")
+region = Rect2(144, 0, 48, 48)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_2w11d"]
+atlas = ExtResource("4_y4r1p")
+region = Rect2(192, 0, 48, 48)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_770dr"]
+atlas = ExtResource("4_y4r1p")
+region = Rect2(240, 0, 48, 48)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_8f1cb"]
+atlas = ExtResource("4_y4r1p")
+region = Rect2(288, 0, 48, 48)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_vdulj"]
+atlas = ExtResource("4_y4r1p")
+region = Rect2(336, 0, 48, 48)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_vau08"]
+atlas = ExtResource("4_y4r1p")
+region = Rect2(384, 0, 48, 48)
 
 [sub_resource type="AtlasTexture" id="AtlasTexture_cs1tg"]
 atlas = ExtResource("5_tuyoq")
@@ -360,6 +397,38 @@ animations = [{
 }, {
 "frames": [{
 "duration": 1.0,
+"texture": SubResource("AtlasTexture_51ujp")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_tk41t")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_fuw3a")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_8txt3")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_2w11d")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_770dr")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_8f1cb")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_vdulj")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_vau08")
+}],
+"loop": true,
+"name": &"dash",
+"speed": 10.0
+}, {
+"frames": [{
+"duration": 1.0,
 "texture": SubResource("AtlasTexture_cs1tg")
 }],
 "loop": true,
@@ -538,11 +607,17 @@ animations = [{
 "speed": 10.0
 }]
 
-[node name="CharacterBody2D" type="CharacterBody2D" unique_id=1636683765 node_paths=PackedStringArray("PlayerSprite", "PlayerCollider")]
+[sub_resource type="CapsuleShape2D" id="CapsuleShape2D_ur7pv"]
+radius = 17.0
+height = 38.0
+
+[node name="CharacterBody2D" type="CharacterBody2D" unique_id=1636683765 node_paths=PackedStringArray("PlayerSprite", "PlayerCollider", "CollisionFull", "CollisionHalf")]
 collision_mask = 2
 script = ExtResource("1_g2els")
 PlayerSprite = NodePath("AnimatedSprite2D")
-PlayerCollider = NodePath("CollisionShape2D")
+PlayerCollider = NodePath("Collisionfull")
+CollisionFull = NodePath("Collisionfull")
+CollisionHalf = NodePath("Collisionhalf")
 dashType = 1
 canRoll = true
 run = true
@@ -553,7 +628,7 @@ slide = true
 falling = true
 roll = true
 
-[node name="CollisionShape2D" type="CollisionShape2D" parent="." unique_id=1151092561]
+[node name="Collisionfull" type="CollisionShape2D" parent="." unique_id=1151092561]
 position = Vector2(0, -30.48)
 shape = SubResource("CapsuleShape2D_g2els")
 
@@ -568,3 +643,7 @@ autoplay = "idle"
 offset = Vector2(0, -146.88)
 drag_vertical_enabled = true
 drag_top_margin = 1.0
+
+[node name="Collisionhalf" type="CollisionShape2D" parent="." unique_id=1655675760]
+position = Vector2(-8, -19)
+shape = SubResource("CapsuleShape2D_ur7pv")

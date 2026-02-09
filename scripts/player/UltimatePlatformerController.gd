@@ -12,6 +12,8 @@ class_name PlatformerController2D
 @export_category("Necesary Child Nodes")
 @export var PlayerSprite: AnimatedSprite2D
 @export var PlayerCollider: CollisionShape2D
+@export var CollisionFull: CollisionShape2D
+@export var CollisionHalf: CollisionShape2D
 
 #INFO HORIZONTAL MOVEMENT 
 @export_category("L/R Movement")
@@ -150,6 +152,7 @@ var down_press_timer: float = 0.0
 var down_is_held: bool = false
 var down_triggered_roll: bool = false
 var slide_timer: float = 0.0
+var roll_start_velocity: float = 0.0  # Store velocity at roll start
 
 var twoWayDashHorizontal
 var twoWayDashVertical
@@ -162,10 +165,6 @@ var movementInputMonitoring: Vector2 = Vector2(true, true) #movementInputMonitor
 var gdelta: float = 1
 
 var dset = false
-
-var colliderScaleLockY
-var colliderPosLockY
-var colliderCrouchPosY
 
 var latched
 var wasLatched
@@ -204,6 +203,12 @@ func _ready():
 	# Set initial speed for parkour/endless runner games
 	velocity.x = initialSpeed
 	
+	# Ensure collision shapes are properly initialized
+	if CollisionFull:
+		CollisionFull.disabled = false
+	if CollisionHalf:
+		CollisionHalf.disabled = true
+	
 func _updateData():
 	acceleration = maxSpeed / timeToReachMaxSpeed
 	deceleration = -maxSpeed / timeToReachZeroSpeed
@@ -217,12 +222,12 @@ func _updateData():
 	maxSpeedLock = maxSpeed
 	
 	animScaleLock = abs(anim.scale)
-	colliderScaleLockY = col.scale.y
-	colliderPosLockY = col.position.y
-	# Calculate crouch/slide position: keep collider bottom edge at the same place as standing
-	# Standing bottom = colliderPosLockY + (shape.height / 2) * colliderScaleLockY
-	# Crouch bottom should equal standing bottom, with scale halved
-	colliderCrouchPosY = colliderPosLockY + col.shape.height / 4.0 * colliderScaleLockY
+	
+	# Initialize collision shapes: full is default, half is disabled
+	if CollisionFull:
+		CollisionFull.disabled = false
+	if CollisionHalf:
+		CollisionHalf.disabled = true
 	
 	if timeToReachMaxSpeed == 0:
 		instantAccel = true
@@ -347,7 +352,8 @@ func _physics_process(delta):
 	twirlTap = Input.is_action_just_pressed("twirl")
 	
 	#INFO Left and Right Movement (Parkour Mode - Always moving forward)
-	if !dashing:
+	# During roll, maintain current speed to prevent stopping
+	if !dashing and !rolling:
 		if rightHold and movementInputMonitoring.x:
 			# Right key - accelerate toward maxSpeed
 			velocity.x = min(velocity.x + speedUpRate * delta, maxSpeed)
@@ -413,13 +419,25 @@ func _physics_process(delta):
 		is_sliding = false
 		down_is_held = false
 	
-	# Apply collider changes for slide or roll (bottom edge stays at same position)
-	if is_sliding or rolling:
-		col.scale.y = colliderScaleLockY / 2
-		col.position.y = colliderCrouchPosY
+	# Switch collision shapes: use half when on floor and pressing down, or during roll/slide
+	if is_on_floor() and downHold and !groundPounding:
+		# Immediately switch to half collision when pressing down on floor
+		if CollisionFull:
+			CollisionFull.disabled = true
+		if CollisionHalf:
+			CollisionHalf.disabled = false
+	elif is_sliding or rolling:
+		# Keep half collision during roll or slide
+		if CollisionFull:
+			CollisionFull.disabled = true
+		if CollisionHalf:
+			CollisionHalf.disabled = false
 	else:
-		col.scale.y = colliderScaleLockY
-		col.position.y = colliderPosLockY
+		# Use full collision in all other cases
+		if CollisionFull:
+			CollisionFull.disabled = false
+		if CollisionHalf:
+			CollisionHalf.disabled = true
 			
 	#INFO Jump and Gravity
 	if velocity.y > 0:
@@ -639,8 +657,12 @@ func _start_roll():
 	# Roll duration is determined by the roll animation's actual length
 	var duration = _get_anim_duration("roll")
 	rolling = true
+	# Store velocity before roll to maintain momentum
+	roll_start_velocity = velocity.x
 	await get_tree().create_timer(duration).timeout
 	rolling = false
+	# Use call_deferred to ensure collision shape switch happens after physics step
+	call_deferred("_on_roll_end")
 
 func _get_anim_duration(anim_name: String) -> float:
 	var frames = anim.sprite_frames
@@ -661,6 +683,17 @@ func _endGroundPound():
 	groundPounding = false
 	appliedTerminalVelocity = terminalVelocity
 	gravityActive = true
+
+func _on_roll_end():
+	# Ensure velocity is maintained after roll ends (prevent sudden stop)
+	# Only restore if no input is being held, otherwise let normal movement logic handle it
+	if !rightHold and !leftHold:
+		velocity.x = max(roll_start_velocity, minSpeed)
+	# Ensure collision shape is properly switched
+	if CollisionFull:
+		CollisionFull.disabled = false
+	if CollisionHalf:
+		CollisionHalf.disabled = true
 
 func _placeHolder():
 	print("")
