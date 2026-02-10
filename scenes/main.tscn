@@ -4,8 +4,15 @@
 [ext_resource type="Texture2D" uid="uid://bp7k166ss5862" path="res://assets/1 - Grassland/Background parts/4 - Cloud_cover_2.png" id="1_sugp2"]
 [ext_resource type="PackedScene" uid="uid://cc4if3vsfrqnb" path="res://scenes/stage_0.tscn" id="3_jyhfs"]
 [ext_resource type="PackedScene" uid="uid://b3koci8ywlhs7" path="res://scenes/player.tscn" id="3_sugp2"]
+[ext_resource type="Script" uid="uid://50mpt6bq5cwj" path="res://scripts/ui/coin_counter.gd" id="5_coin_counter"]
+[ext_resource type="Texture2D" uid="uid://dbg8f4q3v0syx" path="res://assets/coins/JumpingShiningCoin.png" id="6_coin_tex"]
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_coin_icon"]
+atlas = ExtResource("6_coin_tex")
+region = Rect2(0, 0, 8, 16)
 
 [node name="main" type="Node2D" unique_id=1180820391]
+position = Vector2(123, 133)
 
 [node name="bg" type="Node2D" parent="." unique_id=1057693822]
 
@@ -37,3 +44,29 @@ jumpHeight = 2.5
 gravityScale = 30.0
 rollSlideThreshold = 0.15000000000000002
 latch = true
+
+[node name="UI" type="CanvasLayer" parent="." unique_id=388941965]
+
+[node name="CoinCounter" type="HBoxContainer" parent="UI" unique_id=1511008087]
+offset_left = 20.0
+offset_top = 16.0
+offset_right = 140.0
+offset_bottom = 56.0
+theme_override_constants/separation = 8
+script = ExtResource("5_coin_counter")
+
+[node name="CoinIcon" type="TextureRect" parent="UI/CoinCounter" unique_id=861389021]
+custom_minimum_size = Vector2(32, 32)
+layout_mode = 2
+texture = SubResource("AtlasTexture_coin_icon")
+expand_mode = 1
+stretch_mode = 5
+
+[node name="CoinLabel" type="Label" parent="UI/CoinCounter" unique_id=1211030359]
+layout_mode = 2
+theme_override_colors/font_color = Color(1, 1, 1, 1)
+theme_override_colors/font_shadow_color = Color(0, 0, 0, 0.6)
+theme_override_constants/shadow_offset_x = 2
+theme_override_constants/shadow_offset_y = 2
+theme_override_font_sizes/font_size = 24
+text = "x 0"
