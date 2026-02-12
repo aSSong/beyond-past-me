@@ -405,10 +405,19 @@ func _physics_process(delta):
 	
 	#INFO Crouch detection: if on floor, not rolling/sliding, and ceiling raycast hits
 	if ceilingRaycast and is_on_floor() and !rolling and !is_sliding:
-		crouching = ceilingRaycast.is_colliding()
+		if ceilingRaycast.is_colliding():
+			crouching = true
+		elif crouching:
+			# Raycast clear, but verify full collider fits before standing up
+			crouching = !_can_stand_up()
+		else:
+			crouching = false
 	else:
 		if ceilingRaycast and !ceilingRaycast.is_colliding():
-			crouching = false
+			if crouching:
+				crouching = !_can_stand_up()
+			else:
+				crouching = false
 	
 	# Switch collision shapes: prioritize roll/slide state
 	# During roll/slide: always use half
@@ -696,6 +705,18 @@ func _on_roll_end():
 	if !rightHold and !leftHold:
 		velocity.x = max(roll_start_velocity, minSpeed)
 	# Collision shape will be switched in _physics_process based on was_rolling_or_sliding flag
+
+func _can_stand_up() -> bool:
+	if !CollisionFull or !CollisionHalf:
+		return true
+	# Temporarily switch to full collider to test if it fits
+	CollisionHalf.disabled = true
+	CollisionFull.disabled = false
+	var blocked = test_move(transform, Vector2.ZERO)
+	# Restore half collider
+	CollisionFull.disabled = true
+	CollisionHalf.disabled = false
+	return !blocked
 
 func _placeHolder():
 	print("")
