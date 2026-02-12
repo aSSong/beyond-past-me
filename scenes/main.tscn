@@ -12,9 +12,9 @@ atlas = ExtResource("6_coin_tex")
 region = Rect2(0, 0, 8, 16)
 
 [node name="main" type="Node2D" unique_id=1180820391]
-position = Vector2(123, 133)
 
 [node name="bg" type="Node2D" parent="." unique_id=1057693822]
+position = Vector2(123, 133)
 
 [node name="5-sky" type="Parallax2D" parent="bg" unique_id=158432591]
 scroll_scale = Vector2(0, 0)
@@ -34,10 +34,11 @@ position = Vector2(145, 372)
 texture = ExtResource("1_sugp2")
 
 [node name="Stage0" parent="." unique_id=149202156 instance=ExtResource("3_jyhfs")]
+position = Vector2(123, 133)
 
 [node name="player" parent="." unique_id=1636683765 instance=ExtResource("3_sugp2")]
 z_index = 10
-position = Vector2(125, 448)
+position = Vector2(248, 581)
 scale = Vector2(1.5, 1.5)
 maxSpeed = 500.0
 jumpHeight = 2.5

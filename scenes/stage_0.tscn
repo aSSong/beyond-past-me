@@ -151,3 +151,60 @@ position = Vector2(1671.5, 151.5)
 
 [node name="coin19" parent="coins" unique_id=1025013134 instance=ExtResource("2_cegp7")]
 position = Vector2(1866, 151.5)
+
+[node name="coin20" parent="coins" unique_id=1731600801 instance=ExtResource("2_cegp7")]
+position = Vector2(2297.5, 167.5)
+
+[node name="coin21" parent="coins" unique_id=938725322 instance=ExtResource("2_cegp7")]
+position = Vector2(2345.5, 133)
+
+[node name="coin22" parent="coins" unique_id=1472374546 instance=ExtResource("2_cegp7")]
+position = Vector2(2400.5, 97)
+
+[node name="coin23" parent="coins" unique_id=397674258 instance=ExtResource("2_cegp7")]
+position = Vector2(2459.5, 76)
+
+[node name="coin24" parent="coins" unique_id=1084179810 instance=ExtResource("2_cegp7")]
+position = Vector2(2514, 93.5)
+
+[node name="coin25" parent="coins" unique_id=262140943 instance=ExtResource("2_cegp7")]
+position = Vector2(2565, 129.5)
+
+[node name="coin26" parent="coins" unique_id=1346691843 instance=ExtResource("2_cegp7")]
+position = Vector2(2607.5, 167)
+
+[node name="coin27" parent="coins" unique_id=1252759759 instance=ExtResource("2_cegp7")]
+position = Vector2(2764, 167)
+
+[node name="coin28" parent="coins" unique_id=1158444128 instance=ExtResource("2_cegp7")]
+position = Vector2(2828, 131)
+
+[node name="coin29" parent="coins" unique_id=1088083223 instance=ExtResource("2_cegp7")]
+position = Vector2(2891, 164.5)
+
+[node name="coin30" parent="coins" unique_id=2105585592 instance=ExtResource("2_cegp7")]
+position = Vector2(3027.5, 200)
+
+[node name="coin31" parent="coins" unique_id=580285964 instance=ExtResource("2_cegp7")]
+position = Vector2(3097, 200)
+
+[node name="coin32" parent="coins" unique_id=358558519 instance=ExtResource("2_cegp7")]
+position = Vector2(3158, 199.5)
+
+[node name="coin33" parent="coins" unique_id=508608979 instance=ExtResource("2_cegp7")]
+position = Vector2(3358.5, 166.5)
+
+[node name="coin34" parent="coins" unique_id=2082708674 instance=ExtResource("2_cegp7")]
+position = Vector2(3430, 166.5)
+
+[node name="coin35" parent="coins" unique_id=222901509 instance=ExtResource("2_cegp7")]
+position = Vector2(3494, 166.5)
+
+[node name="coin36" parent="coins" unique_id=174234663 instance=ExtResource("2_cegp7")]
+position = Vector2(3562.5, 166.5)
+
+[node name="coin37" parent="coins" unique_id=1547683055 instance=ExtResource("2_cegp7")]
+position = Vector2(3817, 166.5)
+
+[node name="coin38" parent="coins" unique_id=907160739 instance=ExtResource("2_cegp7")]
+position = Vector2(3893.5, 198)

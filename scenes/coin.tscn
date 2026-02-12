@@ -95,6 +95,38 @@ region = Rect2(168, 0, 8, 16)
 atlas = ExtResource("1_rwqht")
 region = Rect2(176, 0, 8, 16)
 
+[sub_resource type="AtlasTexture" id="AtlasTexture_08xd7"]
+atlas = ExtResource("1_rwqht")
+region = Rect2(168, 0, 8, 16)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_o84n6"]
+atlas = ExtResource("1_rwqht")
+region = Rect2(176, 0, 8, 16)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_n0cs3"]
+atlas = ExtResource("1_rwqht")
+region = Rect2(184, 0, 8, 16)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_y5nr7"]
+atlas = ExtResource("1_rwqht")
+region = Rect2(192, 0, 8, 16)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_n82t6"]
+atlas = ExtResource("1_rwqht")
+region = Rect2(200, 0, 8, 16)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_pgtcm"]
+atlas = ExtResource("1_rwqht")
+region = Rect2(208, 0, 8, 16)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_cpdtj"]
+atlas = ExtResource("1_rwqht")
+region = Rect2(216, 0, 8, 16)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_hiw6k"]
+atlas = ExtResource("1_rwqht")
+region = Rect2(224, 0, 8, 16)
+
 [sub_resource type="SpriteFrames" id="SpriteFrames_kahox"]
 animations = [{
 "frames": [{
@@ -170,6 +202,35 @@ animations = [{
 "loop": true,
 "name": &"default",
 "speed": 10.0
+}, {
+"frames": [{
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_08xd7")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_o84n6")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_n0cs3")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_y5nr7")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_n82t6")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_pgtcm")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_cpdtj")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_hiw6k")
+}],
+"loop": true,
+"name": &"got",
+"speed": 10.0
 }]
 
 [sub_resource type="CircleShape2D" id="CircleShape2D_rwqht"]
@@ -181,12 +242,11 @@ script = ExtResource("1_coin_script")
 
 [node name="AnimatedSprite2D" type="AnimatedSprite2D" parent="." unique_id=1220337828]
 sprite_frames = SubResource("SpriteFrames_kahox")
+animation = &"got"
 autoplay = "default"
-frame_progress = 0.35034978
 
 [node name="Area2D" type="Area2D" parent="." unique_id=402864629]
 collision_layer = 4
-collision_mask = 1
 
 [node name="CollisionShape2D" type="CollisionShape2D" parent="Area2D" unique_id=1493178155]
 position = Vector2(-0.5, 3.5)
