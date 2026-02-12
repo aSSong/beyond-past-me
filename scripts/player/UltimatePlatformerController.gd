@@ -138,10 +138,12 @@ var jumpMagnitude: float = 500.0
 var jumpCount: int
 var jumpWasPressed: bool = false
 var coyoteActive: bool = false
-var dashMagnitude: float
 var gravityActive: bool = true
 var dashing: bool = false
 var dashCount: int
+var dash_timer: float = 0.0
+var dash_duration: float = 0.0
+var dash_pre_speed: float = 0.0
 var rolling: bool = false
 var is_sliding: bool = false
 var down_press_timer: float = 0.0
@@ -211,7 +213,6 @@ func _updateData():
 	jumpMagnitude = (10.0 * jumpHeight) * gravityScale
 	jumpCount = jumps
 	
-	dashMagnitude = maxSpeed * dashLength
 	dashCount = dashes
 	
 	maxSpeedLock = maxSpeed
@@ -347,9 +348,9 @@ func _physics_process(delta):
 				velocity.x = max(velocity.x - current_return_rate * delta, initialSpeed)
 			elif velocity.x < initialSpeed:
 				velocity.x = min(velocity.x + current_return_rate * delta, initialSpeed)
-	
-	# Ensure speed never drops below minSpeed
-	velocity.x = max(velocity.x, minSpeed)
+		
+		# Ensure speed never drops below minSpeed (only when not dashing)
+		velocity.x = max(velocity.x, minSpeed)
 	
 	# Always moving right in parkour mode
 	wasMovingR = true
@@ -538,62 +539,59 @@ func _physics_process(delta):
 			
 			
 	#INFO dashing
-	if is_on_floor():
+	# Dash timer: count down and end dash when duration expires
+	if dashing:
+		dash_timer += delta
+		if dash_timer >= dash_duration:
+			_end_dash()
+	
+	# Reset dash count only when on floor and NOT currently dashing
+	if is_on_floor() and !dashing:
 		dashCount = dashes
-	if eightWayDash and dashTap and dashCount > 0 and !rolling:
-		var input_direction = Input.get_vector("left", "right", "up", "down")
-		var dTime = 0.0625 * dashLength
-		_dashingTime(dTime)
-		_pauseGravity(dTime)
-		velocity = dashMagnitude * input_direction
-		dashCount += -1
-		movementInputMonitoring = Vector2(false, false)
-		_inputPauseReset(dTime)
 	
-	if twoWayDashVertical and dashTap and dashCount > 0 and !rolling:
+	# Trigger new dash (must not be dashing, rolling, sliding, or crouching)
+	if dashTap and dashCount > 0 and !dashing and !rolling and !is_sliding and !crouching:
 		var dTime = 0.0625 * dashLength
-		if upHold and downHold:
-			_placeHolder()
-		elif upHold:
-			_dashingTime(dTime)
-			_pauseGravity(dTime)
-			velocity.x = 0
-			velocity.y = -dashMagnitude
-			dashCount += -1
+		var current_dash_magnitude = velocity.x * dashLength
+		var dash_triggered = false
+		
+		if eightWayDash:
+			var input_direction = Input.get_vector("left", "right", "up", "down")
+			if input_direction != Vector2.ZERO:
+				dash_pre_speed = velocity.x
+				velocity = current_dash_magnitude * input_direction
+				dash_triggered = true
+		else:
+			# Check vertical dash first (has priority when Four Way is enabled)
+			if twoWayDashVertical:
+				if upHold and !downHold:
+					dash_pre_speed = velocity.x
+					velocity.x = 0
+					velocity.y = -current_dash_magnitude
+					dash_triggered = true
+				elif downHold and !upHold:
+					dash_pre_speed = velocity.x
+					velocity.x = 0
+					velocity.y = current_dash_magnitude
+					dash_triggered = true
+			# Horizontal dash: always forward in parkour mode (only if vertical didn't trigger)
+			if !dash_triggered and twoWayDashHorizontal and !(upHold or downHold):
+				dash_pre_speed = velocity.x
+				velocity.y = 0
+				velocity.x = current_dash_magnitude
+				dash_triggered = true
+		
+		if dash_triggered:
+			dashing = true
+			dash_timer = 0.0
+			dash_duration = dTime
+			dashCount -= 1
+			gravityActive = false
 			movementInputMonitoring = Vector2(false, false)
-			_inputPauseReset(dTime)
-		elif downHold and dashCount > 0:
-			_dashingTime(dTime)
-			_pauseGravity(dTime)
-			velocity.x = 0
-			velocity.y = dashMagnitude
-			dashCount += -1
-			movementInputMonitoring = Vector2(false, false)
-			_inputPauseReset(dTime)
 	
-	if twoWayDashHorizontal and dashTap and dashCount > 0 and !rolling:
-		var dTime = 0.0625 * dashLength
-		if wasPressingR and !(upHold or downHold):
-			velocity.y = 0
-			velocity.x = dashMagnitude
-			_pauseGravity(dTime)
-			_dashingTime(dTime)
-			dashCount += -1
-			movementInputMonitoring = Vector2(false, false)
-			_inputPauseReset(dTime)
-		elif !(upHold or downHold):
-			velocity.y = 0
-			velocity.x = -dashMagnitude
-			_pauseGravity(dTime)
-			_dashingTime(dTime)
-			dashCount += -1
-			movementInputMonitoring = Vector2(false, false)
-			_inputPauseReset(dTime)
-			
-	if dashing and velocity.x > 0 and leftTap and dashCancel:
-		velocity.x = 0
-	if dashing and velocity.x < 0 and rightTap and dashCancel:
-		velocity.x = 0
+	# Dash cancel: pressing left during dash ends it early, restoring pre-dash speed
+	if dashing and leftTap and dashCancel:
+		_end_dash()
 	
 	#INFO Corner Cutting
 	if cornerCutting:
@@ -656,15 +654,13 @@ func _inputPauseReset(time):
 	movementInputMonitoring = Vector2(true, true)
 	
 
-func _pauseGravity(time):
-	gravityActive = false
-	await get_tree().create_timer(time).timeout
-	gravityActive = true
-
-func _dashingTime(time):
-	dashing = true
-	await get_tree().create_timer(time).timeout
+func _end_dash():
 	dashing = false
+	dash_timer = 0.0
+	gravityActive = true
+	movementInputMonitoring = Vector2(true, true)
+	# Restore pre-dash horizontal speed
+	velocity.x = dash_pre_speed
 
 func _start_roll():
 	# Roll duration is determined by the roll animation's actual length
