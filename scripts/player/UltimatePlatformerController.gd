@@ -23,12 +23,6 @@ class_name PlatformerController2D
 @export_range(50, 500) var maxSpeed: float = 200.0
 ##The minimum speed when pressing left key to brake
 @export_range(0, 500) var minSpeed: float = 50.0
-##How fast your player will reach max speed from rest (in seconds)
-@export_range(0, 4) var timeToReachMaxSpeed: float = 0.2
-##How fast your player will reach zero speed from max speed (in seconds)
-@export_range(0, 4) var timeToReachZeroSpeed: float = 0.2
-##If true, player will instantly move and switch directions. Overrides the "timeToReach" variables, setting them to 0.
-@export var directionalSnap: bool = false
 ##If enabled, the default movement speed will by 1/2 of the maxSpeed and the player must hold a "run" button to accelerate to max speed. Assign "run" (case sensitive) in the project input settings.
 @export var runningModifier: bool = false
 ##How fast (per second) speed increases when pressing right key
@@ -39,6 +33,10 @@ class_name PlatformerController2D
 @export_range(0, 1000) var returnToInitialRate: float = 100.0
 ##Speed threshold: below this plays "walk" animation, at or above plays "run" animation
 @export_range(0, 500) var walkSpeed: float = 120.0
+
+@export_category("Crouching")
+##RayCast2D pointing upward from half-collider top to full-collider top. If colliding with floor layer, player is forced into crouch walk.
+@export var ceilingRaycast: RayCast2D
 
 #INFO JUMPING 
 @export_category("Jumping and Gravity")
@@ -107,6 +105,8 @@ class_name PlatformerController2D
 ##Maximum duration (seconds) the player can slide before automatically exiting
 @export_range(0.5, 5.0) var maxSlideTime: float = 1.5
 
+
+
 @export_category("Animations (Check Box if has animation)")
 ##Animations must be named "run" all lowercase as the check box says
 @export var run: bool
@@ -124,6 +124,8 @@ class_name PlatformerController2D
 @export var falling: bool
 ##Animations must be named "roll" all lowercase as the check box says
 @export var roll: bool
+##Animations must be named "crouch_walk" all lowercase as the check box says
+@export var crouch_walk: bool
 
 
 
@@ -131,12 +133,6 @@ class_name PlatformerController2D
 var appliedGravity: float
 var maxSpeedLock: float
 var appliedTerminalVelocity: float
-
-var friction: float
-var acceleration: float
-var deceleration: float
-var instantAccel: bool = false
-var instantStop: bool = false
 
 var jumpMagnitude: float = 500.0
 var jumpCount: int
@@ -154,6 +150,7 @@ var down_triggered_roll: bool = false
 var slide_timer: float = 0.0
 var roll_start_velocity: float = 0.0  # Store velocity at roll start
 var was_rolling_or_sliding: bool = false  # Track if we just finished roll/slide
+var crouching: bool = false
 
 var twoWayDashHorizontal
 var twoWayDashVertical
@@ -211,9 +208,6 @@ func _ready():
 		CollisionHalf.disabled = true
 	
 func _updateData():
-	acceleration = maxSpeed / timeToReachMaxSpeed
-	deceleration = -maxSpeed / timeToReachZeroSpeed
-	
 	jumpMagnitude = (10.0 * jumpHeight) * gravityScale
 	jumpCount = jumps
 	
@@ -230,35 +224,12 @@ func _updateData():
 	if CollisionHalf:
 		CollisionHalf.disabled = true
 	
-	if timeToReachMaxSpeed == 0:
-		instantAccel = true
-		timeToReachMaxSpeed = 1
-	elif timeToReachMaxSpeed < 0:
-		timeToReachMaxSpeed = abs(timeToReachMaxSpeed)
-		instantAccel = false
-	else:
-		instantAccel = false
-		
-	if timeToReachZeroSpeed == 0:
-		instantStop = true
-		timeToReachZeroSpeed = 1
-	elif timeToReachMaxSpeed < 0:
-		timeToReachMaxSpeed = abs(timeToReachMaxSpeed)
-		instantStop = false
-	else:
-		instantStop = false
-		
 	if jumps > 1:
 		jumpBuffering = 0
 		coyoteTime = 0
 	
 	coyoteTime = abs(coyoteTime)
 	jumpBuffering = abs(jumpBuffering)
-	
-	if directionalSnap:
-		instantAccel = true
-		instantStop = true
-	
 	
 	twoWayDashHorizontal = false
 	twoWayDashVertical = false
@@ -314,6 +285,10 @@ func _process(_delta):
 	elif velocity.y > 40 and falling:
 		anim.speed_scale = 1
 		anim.play("falling")
+	# Crouch walk (before normal walk/run/idle)
+	elif crouching and is_on_floor() and crouch_walk:
+		anim.speed_scale = abs(velocity.x / 150)
+		anim.play("crouch_walk")
 	# Walk / Run / Idle on floor
 	elif is_on_floor():
 		if abs(velocity.x) > 0.1 and !is_on_wall():
@@ -355,18 +330,23 @@ func _physics_process(delta):
 	#INFO Left and Right Movement (Parkour Mode - Always moving forward)
 	# During roll, maintain current speed to prevent stopping
 	if !dashing and !rolling:
+		var current_speed_up = speedUpRate / 2.0 if crouching else speedUpRate
+		var current_slow_down = slowDownRate * 2.0 if crouching else slowDownRate
+		var current_return_rate = returnToInitialRate * 2.0 if crouching else returnToInitialRate
+		var current_max_speed = maxSpeed / 2.0 if crouching else maxSpeed
+		
 		if rightHold and movementInputMonitoring.x:
-			# Right key - accelerate toward maxSpeed
-			velocity.x = min(velocity.x + speedUpRate * delta, maxSpeed)
+			# Right key - accelerate toward maxSpeed (halved when crouching)
+			velocity.x = min(velocity.x + current_speed_up * delta, current_max_speed)
 		elif leftHold and movementInputMonitoring.y:
 			# Left key - decelerate toward minSpeed
-			velocity.x = max(velocity.x - slowDownRate * delta, minSpeed)
+			velocity.x = max(velocity.x - current_slow_down * delta, minSpeed)
 		else:
 			# No input - return toward initialSpeed
 			if velocity.x > initialSpeed:
-				velocity.x = max(velocity.x - returnToInitialRate * delta, initialSpeed)
+				velocity.x = max(velocity.x - current_return_rate * delta, initialSpeed)
 			elif velocity.x < initialSpeed:
-				velocity.x = min(velocity.x + returnToInitialRate * delta, initialSpeed)
+				velocity.x = min(velocity.x + current_return_rate * delta, initialSpeed)
 	
 	# Ensure speed never drops below minSpeed
 	velocity.x = max(velocity.x, minSpeed)
@@ -423,6 +403,13 @@ func _physics_process(delta):
 		is_sliding = false
 		down_is_held = false
 	
+	#INFO Crouch detection: if on floor, not rolling/sliding, and ceiling raycast hits
+	if ceilingRaycast and is_on_floor() and !rolling and !is_sliding:
+		crouching = ceilingRaycast.is_colliding()
+	else:
+		if ceilingRaycast and !ceilingRaycast.is_colliding():
+			crouching = false
+	
 	# Switch collision shapes: prioritize roll/slide state
 	# During roll/slide: always use half
 	# After roll/slide ends: use full even if down is still held (until down is released or new roll/slide starts)
@@ -430,6 +417,13 @@ func _physics_process(delta):
 	if is_sliding or rolling:
 		# Keep half collision during roll or slide
 		was_rolling_or_sliding = false  # Reset flag when entering roll/slide
+		if CollisionFull:
+			CollisionFull.disabled = true
+		if CollisionHalf:
+			CollisionHalf.disabled = false
+	elif crouching:
+		# Crouch walk: use half collision
+		was_rolling_or_sliding = false
 		if CollisionFull:
 			CollisionFull.disabled = true
 		if CollisionHalf:
@@ -652,16 +646,6 @@ func _inputPauseReset(time):
 	await get_tree().create_timer(time).timeout
 	movementInputMonitoring = Vector2(true, true)
 	
-
-func _decelerate(delta, vertical):
-	if !vertical:
-		if velocity.x > 0:
-			velocity.x += deceleration * delta
-		elif velocity.x < 0:
-			velocity.x -= deceleration * delta
-	elif vertical and velocity.y > 0:
-		velocity.y += deceleration * delta
-
 
 func _pauseGravity(time):
 	gravityActive = false

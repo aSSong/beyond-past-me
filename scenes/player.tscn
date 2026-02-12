@@ -611,13 +611,15 @@ animations = [{
 radius = 17.0
 height = 38.0
 
-[node name="CharacterBody2D" type="CharacterBody2D" unique_id=1636683765 node_paths=PackedStringArray("PlayerSprite", "PlayerCollider", "CollisionFull", "CollisionHalf")]
+[node name="CharacterBody2D" type="CharacterBody2D" unique_id=1636683765 node_paths=PackedStringArray("PlayerSprite", "PlayerCollider", "CollisionFull", "CollisionHalf", "ceilingRaycast")]
 collision_mask = 6
 script = ExtResource("1_g2els")
 PlayerSprite = NodePath("AnimatedSprite2D")
 PlayerCollider = NodePath("Collisionfull")
 CollisionFull = NodePath("Collisionfull")
 CollisionHalf = NodePath("Collisionhalf")
+runningModifier = true
+ceilingRaycast = NodePath("RayCast2D")
 dashType = 1
 canRoll = true
 run = true
@@ -627,6 +629,7 @@ walk = true
 slide = true
 falling = true
 roll = true
+crouch_walk = true
 
 [node name="Collisionfull" type="CollisionShape2D" parent="." unique_id=1151092561]
 position = Vector2(0, -30.48)
@@ -636,7 +639,7 @@ shape = SubResource("CapsuleShape2D_g2els")
 position = Vector2(0, -32.09)
 scale = Vector2(2, 2)
 sprite_frames = SubResource("SpriteFrames_eb6dy")
-animation = &"slide"
+animation = &"crouch_idle"
 autoplay = "idle"
 
 [node name="Camera2D" type="Camera2D" parent="." unique_id=580594329]
@@ -647,3 +650,8 @@ drag_top_margin = 1.0
 [node name="Collisionhalf" type="CollisionShape2D" parent="." unique_id=1655675760]
 position = Vector2(-8, -19)
 shape = SubResource("CapsuleShape2D_ur7pv")
+
+[node name="RayCast2D" type="RayCast2D" parent="." unique_id=831723538]
+position = Vector2(-1, -31)
+target_position = Vector2(1, -28)
+collision_mask = 2
