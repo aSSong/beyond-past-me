@@ -3,6 +3,7 @@
 [ext_resource type="Texture2D" uid="uid://dbwpnaj73faej" path="res://assets/1 - Grassland/Terrain (16 x 16).png" id="1_55hvl"]
 [ext_resource type="PackedScene" uid="uid://cgiudrc36q4rx" path="res://scenes/coin.tscn" id="2_cegp7"]
 [ext_resource type="PackedScene" uid="uid://cyqnfmxq5jpps" path="res://scenes/check_point.tscn" id="3_mg2ut"]
+[ext_resource type="Script" path="res://scripts/stage/stage_base.gd" id="4_stagebase"]
 
 [sub_resource type="TileSetAtlasSource" id="TileSetAtlasSource_sugp2"]
 texture = ExtResource("1_55hvl")
@@ -86,6 +87,7 @@ physics_layer_0/collision_layer = 2
 sources/0 = SubResource("TileSetAtlasSource_sugp2")
 
 [node name="Stage0" type="Node2D" unique_id=149202156]
+script = ExtResource("4_stagebase")
 z_index = 9
 scale = Vector2(2, 2)
 

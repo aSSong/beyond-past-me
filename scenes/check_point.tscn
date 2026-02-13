@@ -1,6 +1,7 @@
 [gd_scene format=3 uid="uid://cyqnfmxq5jpps"]
 
 [ext_resource type="Texture2D" uid="uid://dp34r4mq1ev7k" path="res://assets/1 - Grassland/Grassland_entities (16 x 16).png" id="1_od5km"]
+[ext_resource type="Script" path="res://scripts/stage/check_point.gd" id="2_cpscript"]
 
 [sub_resource type="AtlasTexture" id="AtlasTexture_klegx"]
 atlas = ExtResource("1_od5km")
@@ -10,6 +11,7 @@ region = Rect2(148.8921, 18.590508, 38.747086, 45.686874)
 size = Vector2(11, 424)
 
 [node name="CheckPoint" type="Node2D" unique_id=721009045]
+script = ExtResource("2_cpscript")
 
 [node name="Sprite2D" type="Sprite2D" parent="." unique_id=445986038]
 position = Vector2(0, -23)
