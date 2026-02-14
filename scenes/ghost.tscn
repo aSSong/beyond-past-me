@@ -1,0 +1,13 @@
+[gd_scene format=3 uid="uid://bh4o8n21w28un"]
+
+[ext_resource type="PackedScene" uid="uid://b3koci8ywlhs7" path="res://scenes/player.tscn" id="1_t76o2"]
+[ext_resource type="Script" path="res://scripts/ghost/ghost_controller.gd" id="2_ghost"]
+
+[node name="ghost" unique_id=1636683765 instance=ExtResource("1_t76o2")]
+script = ExtResource("2_ghost")
+collision_layer = 1
+collision_mask = 0
+
+[node name="Camera2D" parent="." index="2" unique_id=580594329]
+visible = false
+enabled = false

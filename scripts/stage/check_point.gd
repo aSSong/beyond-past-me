@@ -15,7 +15,8 @@ func _ready() -> void:
 
 
 func _on_body_entered(body: Node2D) -> void:
-	if body is CharacterBody2D:
+	## 只响应玩家，忽略 Ghost（Ghost 也是 CharacterBody2D 但在 ghost 组中）
+	if body is CharacterBody2D and not body.is_in_group("ghost"):
 		## 禁用监测防止重复触发
 		$Area2D.set_deferred("monitoring", false)
 		player_entered.emit()
