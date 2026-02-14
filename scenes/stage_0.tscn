@@ -207,10 +207,10 @@ position = Vector2(3494, 166.5)
 position = Vector2(3562.5, 166.5)
 
 [node name="coin37" parent="coins" unique_id=1547683055 instance=ExtResource("2_cegp7")]
-position = Vector2(3817, 166.5)
+position = Vector2(2021, 99)
 
 [node name="coin38" parent="coins" unique_id=907160739 instance=ExtResource("2_cegp7")]
-position = Vector2(3893.5, 198)
+position = Vector2(2097.5, 130.5)
 
 [node name="CheckPoint_start" parent="." unique_id=721009045 instance=ExtResource("3_mg2ut")]
 position = Vector2(182, 225)

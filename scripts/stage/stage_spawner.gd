@@ -164,20 +164,19 @@ func _on_checkpoint_end_reached(_stage: Node2D) -> void:
 	call_deferred("_handle_checkpoint_end")
 
 
-## 处理结束检查点：结束录制、销毁 Ghost
+## 处理结束检查点：仅结束录制
 func _handle_checkpoint_end() -> void:
-	## --- Ghost：结束录制 + 销毁 Ghost ---
+	## --- Ghost：结束录制（Ghost 销毁由回放完毕自行处理） ---
 	if _recorder != null:
 		_recorder.stop_recording()
 		print("[StageSpawner] checkpoint_end: 结束录制")
-
-	_destroy_current_ghost()
-	print("[StageSpawner] checkpoint_end: Ghost 已销毁")
+	print("[StageSpawner] checkpoint_end: Ghost 保持回放，结束后自动淡出销毁")
 
 
 ## ========== Ghost 管理 ==========
 
 ## 生成 Ghost 并传入录制数据
+## Ghost 使用当前区域锚点回放上一次录制的相对轨迹
 func _spawn_ghost(recording: Array[Dictionary]) -> void:
 	if recording.is_empty():
 		push_warning("[StageSpawner] 录制数据为空，跳过 Ghost 生成")
@@ -194,7 +193,12 @@ func _spawn_ghost(recording: Array[Dictionary]) -> void:
 	get_parent().add_child(ghost)
 	## 调用 setup 开始回放（_ready 已执行完毕）
 	if ghost.has_method("setup"):
-		ghost.setup(recording)
+		var replay_origin: Vector2 = recording[0]["position"] as Vector2
+		if player and player is Node2D:
+			## 仅使用当前玩家 X 作为锚点，Y 保持录制起点高度
+			## 避免玩家空中触发 checkpoint_start 时 Ghost 悬空
+			replay_origin.x = (player as Node2D).global_position.x
+		ghost.setup(recording, replay_origin)
 	_current_ghost = ghost
 	print("[StageSpawner] Ghost 已生成并开始回放")
 

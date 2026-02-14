@@ -15,6 +15,10 @@ var _recording: Array[Dictionary] = []
 var _frame_index: int = 0
 ## 是否已开始淡出
 var _fading_out: bool = false
+## 录制轨迹的起点（世界坐标）
+var _recording_origin: Vector2 = Vector2.ZERO
+## 当前回放锚点（世界坐标）
+var _replay_origin: Vector2 = Vector2.ZERO
 
 ## 子节点引用
 @onready var _sprite: AnimatedSprite2D = $AnimatedSprite2D
@@ -49,15 +53,18 @@ func _ready() -> void:
 
 
 ## 接收录制数据并开始回放
-func setup(recording: Array[Dictionary]) -> void:
+## replay_origin: 当前区域中 Ghost 回放的锚点位置
+func setup(recording: Array[Dictionary], replay_origin: Vector2) -> void:
 	_recording = recording
 	_frame_index = 0
 	if _recording.is_empty():
 		push_warning("[GhostController] 录制数据为空，无法回放")
 		queue_free()
 		return
-	## 将 ghost 移动到录制的起始位置
-	global_position = _recording[0]["position"]
+	_recording_origin = _recording[0]["position"] as Vector2
+	_replay_origin = replay_origin
+	## 将 ghost 移动到当前区域的回放起点
+	global_position = _replay_origin
 	set_physics_process(true)
 	print("[GhostController] 开始回放，共 %d 帧" % _recording.size())
 
@@ -72,8 +79,12 @@ func _physics_process(_delta: float) -> void:
 
 	var frame: Dictionary = _recording[_frame_index]
 
-	## 设置全局位置
-	global_position = frame["position"]
+	## X 轴按当前区域锚点做相对回放，Y 轴保留录制时的跳跃相对位移
+	## 这样既能对齐当前区域位置，又不会丢失跳跃动作
+	var recorded_position: Vector2 = frame["position"] as Vector2
+	var replay_x: float = _replay_origin.x + (recorded_position.x - _recording_origin.x)
+	var replay_y: float = _replay_origin.y + (recorded_position.y - _recording_origin.y)
+	global_position = Vector2(replay_x, replay_y)
 
 	## 播放对应动画和帧
 	var anim_name: StringName = frame["animation"]
