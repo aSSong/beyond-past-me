@@ -79,6 +79,7 @@ horizontal_alignment = 1
 vertical_alignment = 1
 
 [node name="tutorial" type="Node2D" parent="." unique_id=352341959]
+visible = false
 
 [node name="Label" type="Label" parent="tutorial" unique_id=1879347801]
 offset_left = 380.0

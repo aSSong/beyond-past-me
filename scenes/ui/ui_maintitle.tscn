@@ -1,0 +1,47 @@
+[gd_scene format=3 uid="uid://ca6b0cf0rkeav"]
+
+[ext_resource type="FontFile" uid="uid://vsihiq5f70tm" path="res://assets/fonts/ZLabsRoundPix_16px_M_CN.ttf" id="1_af3hc"]
+
+[node name="ui_maintitle" type="CanvasLayer" unique_id=743073457]
+
+[node name="label_start" type="RichTextLabel" parent="." unique_id=385654710]
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -400.0
+offset_top = 36.0
+offset_right = 400.0
+offset_bottom = 84.0
+grow_horizontal = 2
+grow_vertical = 2
+pivot_offset_ratio = Vector2(0.5, 0.5)
+theme_override_fonts/normal_font = ExtResource("1_af3hc")
+theme_override_font_sizes/normal_font_size = 36
+bbcode_enabled = true
+text = "[pulse freq=1.0 color=#ffffff40 ease=-2.0]Press [color= red]D[/color] to Run[pulse]"
+scroll_active = false
+horizontal_alignment = 1
+vertical_alignment = 1
+
+[node name="label_title" type="RichTextLabel" parent="." unique_id=1152726137]
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -400.0
+offset_top = -186.0
+offset_right = 400.0
+offset_bottom = -60.0
+grow_horizontal = 2
+grow_vertical = 2
+pivot_offset_ratio = Vector2(0.5, 0.5)
+theme_override_fonts/normal_font = ExtResource("1_af3hc")
+theme_override_font_sizes/normal_font_size = 80
+bbcode_enabled = true
+text = "[shake rate=3.0 level=20 connected=1]超越往昔之我[/shake]"
+scroll_active = false
+horizontal_alignment = 1
+vertical_alignment = 1
