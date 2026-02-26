@@ -639,7 +639,7 @@ shape = SubResource("CapsuleShape2D_g2els")
 position = Vector2(0, -32.09)
 scale = Vector2(2, 2)
 sprite_frames = SubResource("SpriteFrames_eb6dy")
-animation = &"crouch_idle"
+animation = &"idle"
 autoplay = "idle"
 
 [node name="Camera2D" type="Camera2D" parent="." unique_id=580594329]

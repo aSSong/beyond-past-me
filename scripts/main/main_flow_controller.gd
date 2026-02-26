@@ -12,11 +12,16 @@ class_name MainFlowController
 @export var ui_maintitle_path: NodePath = NodePath("ui_maintitle")
 ## 游戏内主 UI 节点路径（CanvasLayer）
 @export var ui_main_path: NodePath = NodePath("UI_main")
+## 按 D 后延迟开始移动的时长（秒）
+@export var run_start_delay_seconds: float = 0.15
 
 var _stage_spawner: StageSpawner
 var _player: PlatformerController2D
 var _ui_maintitle: CanvasLayer
 var _ui_main: CanvasLayer
+var _cached_initial_speed: float = 0.0
+var _cached_min_speed: float = 0.0
+var _run_starting: bool = false
 
 
 func _ready() -> void:
@@ -50,28 +55,47 @@ func _initialize_title_state() -> void:
 func _freeze_player_to_idle() -> void:
 	if _player == null:
 		return
+	if _cached_initial_speed <= 0.0:
+		_cached_initial_speed = _player.initialSpeed
+	if _cached_min_speed <= 0.0:
+		_cached_min_speed = _player.minSpeed
+	## 标题阶段保留重力，让玩家自然落地；仅冻结水平推进速度
+	_player.initialSpeed = 0.0
+	_player.minSpeed = 0.0
 	_player.velocity = Vector2.ZERO
-	_player.set_physics_process(false)
 	if _player.PlayerSprite != null:
 		_player.PlayerSprite.play("idle")
 
 
 func _start_gameplay_flow() -> void:
+	if _run_starting:
+		return
 	if not GameInitializer.request_game_start():
 		return
+	_run_starting = true
 
 	if _ui_maintitle != null:
 		_ui_maintitle.visible = false
 	if _ui_main != null:
 		_ui_main.visible = true
 
-	_unfreeze_player_for_run()
 	if _stage_spawner != null:
 		_stage_spawner.start_gameplay_sequence()
+	call_deferred("_start_run_after_delay")
 
 
 func _unfreeze_player_for_run() -> void:
 	if _player == null:
 		return
-	_player.set_physics_process(true)
+	if _cached_initial_speed > 0.0:
+		_player.initialSpeed = _cached_initial_speed
+	if _cached_min_speed > 0.0:
+		_player.minSpeed = _cached_min_speed
 	_player.velocity.x = _player.initialSpeed
+
+
+func _start_run_after_delay() -> void:
+	if run_start_delay_seconds > 0.0:
+		await get_tree().create_timer(run_start_delay_seconds).timeout
+	_unfreeze_player_for_run()
+	_run_starting = false

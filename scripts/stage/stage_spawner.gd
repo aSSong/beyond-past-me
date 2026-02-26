@@ -9,8 +9,8 @@ class_name StageSpawner
 ##   checkpoint_end   → 结束录制当前区域（Ghost 自行淡出销毁）
 
 #INFO: 顺序关卡配置
-## 标题阶段场景（流程第 0 段）
-@export var maintitle_stage_scene: PackedScene
+## main 场景中内置标题区域节点路径
+@export var maintitle_stage_node_path: NodePath = NodePath("../Stage_maintitle")
 ## 正式流程场景列表（按 1~6 顺序配置）
 @export var gameplay_stage_scenes: Array[PackedScene] = []
 ## 结束阶段场景（流程最后一段）
@@ -45,22 +45,22 @@ var _stage_sequence: Array[PackedScene] = []
 var _next_sequence_index: int = 0
 ## 是否已经进入正式流程（按 D 后）
 var _gameplay_sequence_started: bool = false
+## main 场景中已内置的标题区域实例
+var _maintitle_stage: Node2D = null
+## 第一个正式关卡实例（用于在其 checkpoint_end 后清理标题区域）
+var _first_gameplay_stage: Node2D = null
 
 
 func _ready() -> void:
 	print("[StageSpawner] _ready called")
-	if maintitle_stage_scene == null:
-		push_error("StageSpawner: 未设置标题场景 maintitle_stage_scene")
-		return
 	if ending_stage_scene == null:
 		push_error("StageSpawner: 未设置结束场景 ending_stage_scene")
 		return
 
 	_build_stage_sequence()
+	_setup_maintitle_anchor()
 	## 初始化玩家录制器
 	call_deferred("_setup_recorder")
-	## 延迟到场景树完全就绪后先生成标题场景
-	call_deferred("_spawn_next_stage")
 
 
 ## 查找玩家节点并为其添加 PlayerRecorder 子节点
@@ -129,6 +129,8 @@ func _spawn_next_stage() -> void:
 	## 记录区域顺序信息
 	_spawned_stages.append(stage)
 	_stage_order_by_instance_id[stage.get_instance_id()] = stage_order
+	if stage_order == 0 and _first_gameplay_stage == null:
+		_first_gameplay_stage = stage
 	_current_stage = stage
 
 	## 推进 GameInitializer 中的区域计数
@@ -184,6 +186,8 @@ func _handle_checkpoint_end(stage: Node2D) -> void:
 
 	## end 仅负责清理“当前区域”的上一个区域
 	_cleanup_previous_stage_of(stage)
+	if stage == _first_gameplay_stage:
+		_cleanup_maintitle_stage()
 
 	## 第6关结束时进入流程完成与结束阶段
 	if _is_sixth_gameplay_stage(stage):
@@ -245,11 +249,9 @@ func _build_stage_sequence() -> void:
 	_stage_sequence.clear()
 	_next_sequence_index = 0
 
-	_stage_sequence.append(maintitle_stage_scene)
-
 	var safe_gameplay_count: int = max(gameplay_stage_count, 1)
 	if gameplay_stage_scenes.is_empty():
-		push_warning("StageSpawner: gameplay_stage_scenes 为空，将使用 maintitle 作为占位")
+		push_warning("StageSpawner: gameplay_stage_scenes 为空，将使用 ending_stage_scene 作为占位")
 	for i in range(safe_gameplay_count):
 		var scene: PackedScene = _get_gameplay_scene_by_index(i)
 		_stage_sequence.append(scene)
@@ -262,7 +264,7 @@ func _build_stage_sequence() -> void:
 
 func _get_gameplay_scene_by_index(index: int) -> PackedScene:
 	if gameplay_stage_scenes.is_empty():
-		return maintitle_stage_scene
+		return ending_stage_scene
 	if index < gameplay_stage_scenes.size() and gameplay_stage_scenes[index] != null:
 		return gameplay_stage_scenes[index]
 	## 若配置数量不足，则使用列表最后一个做占位，避免流程中断
@@ -277,6 +279,41 @@ func _pick_next_stage_from_sequence() -> PackedScene:
 	var next_scene: PackedScene = _stage_sequence[_next_sequence_index]
 	_next_sequence_index += 1
 	return next_scene
+
+
+func _setup_maintitle_anchor() -> void:
+	_maintitle_stage = get_node_or_null(maintitle_stage_node_path) as Node2D
+	if _maintitle_stage == null:
+		push_error("StageSpawner: 未找到内置标题区域节点: %s" % String(maintitle_stage_node_path))
+		return
+
+	var metrics: Dictionary = _calculate_stage_metrics(_maintitle_stage)
+	var stage_width: float = float(metrics.get("stage_width", 0.0))
+	_next_spawn_x = _maintitle_stage.position.x + stage_width
+	print("[StageSpawner] 标题区域锚点已初始化, width=", stage_width, " next_spawn_x=", _next_spawn_x)
+
+
+func _calculate_stage_metrics(stage: Node2D) -> Dictionary:
+	var stage_width: float = 0.0
+	var left_offset: float = 0.0
+
+	if stage.has_method("get_left_offset"):
+		left_offset = stage.get_left_offset()
+	if "stage_width" in stage:
+		stage_width = stage.stage_width
+
+	if stage_width <= 0.0:
+		var tile_layer: TileMapLayer = stage.find_child("TileMapLayer", true, false) as TileMapLayer
+		if tile_layer != null and tile_layer.tile_set != null:
+			var used_rect: Rect2i = tile_layer.get_used_rect()
+			var tile_size: Vector2i = tile_layer.tile_set.tile_size
+			stage_width = used_rect.size.x * tile_size.x * stage.scale.x
+			left_offset = used_rect.position.x * tile_size.x * stage.scale.x
+
+	return {
+		"stage_width": stage_width,
+		"left_offset": left_offset,
+	}
 
 
 func _cleanup_previous_stage_of(stage: Node2D) -> void:
@@ -296,5 +333,13 @@ func _cleanup_previous_stage_of(stage: Node2D) -> void:
 
 func _is_sixth_gameplay_stage(stage: Node2D) -> bool:
 	var stage_order: int = int(_stage_order_by_instance_id.get(stage.get_instance_id(), -1))
-	## 序列索引：0=标题, 1~6=正式关卡
-	return stage_order == gameplay_stage_count
+	## 仅统计正式关卡序列：0=第1关, 5=第6关
+	return stage_order == gameplay_stage_count - 1
+
+
+func _cleanup_maintitle_stage() -> void:
+	if _maintitle_stage == null or not is_instance_valid(_maintitle_stage):
+		return
+	print("[StageSpawner] 清理标题区域: ", _maintitle_stage.name)
+	_maintitle_stage.queue_free()
+	_maintitle_stage = null

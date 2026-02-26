@@ -7,6 +7,7 @@
 [ext_resource type="PackedScene" uid="uid://b3koci8ywlhs7" path="res://scenes/player.tscn" id="3_sugp2"]
 [ext_resource type="Script" uid="uid://50mpt6bq5cwj" path="res://scripts/ui/coin_counter.gd" id="5_coin_counter"]
 [ext_resource type="Texture2D" uid="uid://dbg8f4q3v0syx" path="res://assets/coins/JumpingShiningCoin.png" id="6_coin_tex"]
+[ext_resource type="PackedScene" uid="uid://hjph2svskbwo" path="res://scenes/stage_end.tscn" id="6_ya4ey"]
 [ext_resource type="Script" uid="uid://egttdrseqtef" path="res://scripts/stage/stage_spawner.gd" id="7_spawner"]
 [ext_resource type="PackedScene" uid="uid://ca6b0cf0rkeav" path="res://scenes/ui/ui_maintitle.tscn" id="8_ui_maintitle"]
 [ext_resource type="Script" uid="uid://c0cn5bxrxjbjn" path="res://scripts/main/main_flow_controller.gd" id="9_main_flow"]
@@ -19,7 +20,7 @@ region = Rect2(0, 0, 8, 16)
 script = ExtResource("9_main_flow")
 
 [node name="bg" type="Node2D" parent="." unique_id=1057693822]
-position = Vector2(123, 133)
+position = Vector2(123, -2)
 
 [node name="5-sky" type="Parallax2D" parent="bg" unique_id=158432591]
 scroll_scale = Vector2(0, 0)
@@ -40,13 +41,13 @@ texture = ExtResource("1_sugp2")
 
 [node name="StageSpawner" type="Node" parent="." unique_id=580183602]
 script = ExtResource("7_spawner")
-maintitle_stage_scene = ExtResource("3_maintitle_stage")
 gameplay_stage_scenes = Array[PackedScene]([ExtResource("3_jyhfs"), ExtResource("3_jyhfs"), ExtResource("3_jyhfs"), ExtResource("3_jyhfs"), ExtResource("3_jyhfs"), ExtResource("3_jyhfs")])
-ending_stage_scene = ExtResource("3_jyhfs")
+ending_stage_scene = ExtResource("6_ya4ey")
+stage_y_position = 0.0
 
 [node name="player" parent="." unique_id=1636683765 instance=ExtResource("3_sugp2")]
 z_index = 10
-position = Vector2(248.00002, 351)
+position = Vector2(641, 448.00003)
 scale = Vector2(1.5, 1.5)
 maxSpeed = 500.0
 jumpHeight = 2.5
@@ -95,3 +96,5 @@ theme_override_font_sizes/font_size = 48
 text = "WASD & Space"
 
 [node name="ui_maintitle" parent="." unique_id=1531750180 instance=ExtResource("8_ui_maintitle")]
+
+[node name="Stage_maintitle" parent="." unique_id=2063329678 instance=ExtResource("3_maintitle_stage")]
