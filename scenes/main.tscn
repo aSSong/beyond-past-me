@@ -3,16 +3,20 @@
 [ext_resource type="Texture2D" uid="uid://1yaps2yqmf2k" path="res://assets/1 - Grassland/Background parts/5 - Sky_color.png" id="1_o5qli"]
 [ext_resource type="Texture2D" uid="uid://bp7k166ss5862" path="res://assets/1 - Grassland/Background parts/4 - Cloud_cover_2.png" id="1_sugp2"]
 [ext_resource type="PackedScene" uid="uid://cc4if3vsfrqnb" path="res://scenes/stage_0.tscn" id="3_jyhfs"]
+[ext_resource type="PackedScene" uid="uid://d2xl8vumjejf8" path="res://scenes/stage_maintitle.tscn" id="3_maintitle_stage"]
 [ext_resource type="PackedScene" uid="uid://b3koci8ywlhs7" path="res://scenes/player.tscn" id="3_sugp2"]
 [ext_resource type="Script" uid="uid://50mpt6bq5cwj" path="res://scripts/ui/coin_counter.gd" id="5_coin_counter"]
 [ext_resource type="Texture2D" uid="uid://dbg8f4q3v0syx" path="res://assets/coins/JumpingShiningCoin.png" id="6_coin_tex"]
 [ext_resource type="Script" uid="uid://egttdrseqtef" path="res://scripts/stage/stage_spawner.gd" id="7_spawner"]
+[ext_resource type="PackedScene" uid="uid://ca6b0cf0rkeav" path="res://scenes/ui/ui_maintitle.tscn" id="8_ui_maintitle"]
+[ext_resource type="Script" uid="uid://c0cn5bxrxjbjn" path="res://scripts/main/main_flow_controller.gd" id="9_main_flow"]
 
 [sub_resource type="AtlasTexture" id="AtlasTexture_coin_icon"]
 atlas = ExtResource("6_coin_tex")
 region = Rect2(0, 0, 8, 16)
 
 [node name="main" type="Node2D" unique_id=1180820391]
+script = ExtResource("9_main_flow")
 
 [node name="bg" type="Node2D" parent="." unique_id=1057693822]
 position = Vector2(123, 133)
@@ -36,8 +40,9 @@ texture = ExtResource("1_sugp2")
 
 [node name="StageSpawner" type="Node" parent="." unique_id=580183602]
 script = ExtResource("7_spawner")
-initial_stage = ExtResource("3_jyhfs")
-stage_scenes = Array[PackedScene]([ExtResource("3_jyhfs")])
+maintitle_stage_scene = ExtResource("3_maintitle_stage")
+gameplay_stage_scenes = Array[PackedScene]([ExtResource("3_jyhfs"), ExtResource("3_jyhfs"), ExtResource("3_jyhfs"), ExtResource("3_jyhfs"), ExtResource("3_jyhfs"), ExtResource("3_jyhfs")])
+ending_stage_scene = ExtResource("3_jyhfs")
 
 [node name="player" parent="." unique_id=1636683765 instance=ExtResource("3_sugp2")]
 z_index = 10
@@ -49,9 +54,9 @@ gravityScale = 30.0
 rollSlideThreshold = 0.15000000000000002
 latch = true
 
-[node name="UI" type="CanvasLayer" parent="." unique_id=388941965]
+[node name="UI_main" type="CanvasLayer" parent="." unique_id=388941965]
 
-[node name="CoinCounter" type="HBoxContainer" parent="UI" unique_id=1511008087]
+[node name="CoinCounter" type="HBoxContainer" parent="UI_main" unique_id=1511008087]
 offset_left = 20.0
 offset_top = 16.0
 offset_right = 140.0
@@ -59,14 +64,14 @@ offset_bottom = 56.0
 theme_override_constants/separation = 8
 script = ExtResource("5_coin_counter")
 
-[node name="CoinIcon" type="TextureRect" parent="UI/CoinCounter" unique_id=861389021]
+[node name="CoinIcon" type="TextureRect" parent="UI_main/CoinCounter" unique_id=861389021]
 custom_minimum_size = Vector2(64, 64)
 layout_mode = 2
 texture = SubResource("AtlasTexture_coin_icon")
 expand_mode = 1
 stretch_mode = 5
 
-[node name="CoinLabel" type="Label" parent="UI/CoinCounter" unique_id=1211030359]
+[node name="CoinLabel" type="Label" parent="UI_main/CoinCounter" unique_id=1211030359]
 layout_mode = 2
 size_flags_vertical = 8
 theme_override_colors/font_color = Color(1, 1, 1, 1)
@@ -88,3 +93,5 @@ offset_right = 721.0
 offset_bottom = 495.0
 theme_override_font_sizes/font_size = 48
 text = "WASD & Space"
+
+[node name="ui_maintitle" parent="." unique_id=1531750180 instance=ExtResource("8_ui_maintitle")]
