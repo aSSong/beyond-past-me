@@ -14,7 +14,7 @@
 
 [sub_resource type="AtlasTexture" id="AtlasTexture_coin_icon"]
 atlas = ExtResource("6_coin_tex")
-region = Rect2(0, 0, 8, 16)
+region = Rect2(0, 8.066711, 7.040798, 8.693829)
 
 [node name="main" type="Node2D" unique_id=1180820391]
 script = ExtResource("9_main_flow")
@@ -66,10 +66,9 @@ theme_override_constants/separation = 8
 script = ExtResource("5_coin_counter")
 
 [node name="CoinIcon" type="TextureRect" parent="UI_main/CoinCounter" unique_id=861389021]
-custom_minimum_size = Vector2(64, 64)
+custom_minimum_size = Vector2(32, 32)
 layout_mode = 2
 texture = SubResource("AtlasTexture_coin_icon")
-expand_mode = 1
 stretch_mode = 5
 
 [node name="CoinLabel" type="Label" parent="UI_main/CoinCounter" unique_id=1211030359]
@@ -82,7 +81,7 @@ theme_override_constants/shadow_offset_y = 2
 theme_override_font_sizes/font_size = 32
 text = "x 0"
 horizontal_alignment = 1
-vertical_alignment = 1
+vertical_alignment = 2
 
 [node name="tutorial" type="Node2D" parent="." unique_id=352341959]
 visible = false

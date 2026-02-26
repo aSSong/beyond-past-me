@@ -1,7 +1,7 @@
 [gd_scene format=3 uid="uid://cyqnfmxq5jpps"]
 
 [ext_resource type="Texture2D" uid="uid://dp34r4mq1ev7k" path="res://assets/1 - Grassland/Grassland_entities (16 x 16).png" id="1_od5km"]
-[ext_resource type="Script" path="res://scripts/stage/check_point.gd" id="2_cpscript"]
+[ext_resource type="Script" uid="uid://c8gnyyyi2vhii" path="res://scripts/stage/check_point.gd" id="2_cpscript"]
 
 [sub_resource type="AtlasTexture" id="AtlasTexture_klegx"]
 atlas = ExtResource("1_od5km")
@@ -14,7 +14,8 @@ size = Vector2(11, 424)
 script = ExtResource("2_cpscript")
 
 [node name="Sprite2D" type="Sprite2D" parent="." unique_id=445986038]
-position = Vector2(0, -23)
+position = Vector2(0, -67)
+scale = Vector2(3, 3)
 texture = SubResource("AtlasTexture_klegx")
 
 [node name="Area2D" type="Area2D" parent="." unique_id=1311330363]
