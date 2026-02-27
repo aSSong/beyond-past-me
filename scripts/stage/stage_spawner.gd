@@ -8,6 +8,9 @@ class_name StageSpawner
 ##   checkpoint_start → 开始录制当前区域 + 创建 Ghost 回放上一区域录制
 ##   checkpoint_end   → 结束录制当前区域（Ghost 自行淡出销毁）
 
+## 当跑步进度距离边界更新时发出：(起点X, 终点X)
+signal run_progress_bounds_updated(start_x: float, end_x: float)
+
 #INFO: 顺序关卡配置
 ## main 场景中内置标题区域节点路径
 @export var maintitle_stage_node_path: NodePath = NodePath("../Stage_maintitle")
@@ -49,6 +52,12 @@ var _gameplay_sequence_started: bool = false
 var _maintitle_stage: Node2D = null
 ## 第一个正式关卡实例（用于在其 checkpoint_end 后清理标题区域）
 var _first_gameplay_stage: Node2D = null
+## 跑步进度起点X（stage_0 checkpoint_start）
+var _run_progress_start_x: float = 0.0
+## 跑步进度终点X（stage_5 checkpoint_end）
+var _run_progress_end_x: float = 0.0
+## 跑步进度边界是否已准备完成
+var _run_progress_bounds_ready: bool = false
 
 
 func _ready() -> void:
@@ -240,6 +249,7 @@ func start_gameplay_sequence() -> void:
 	if _gameplay_sequence_started:
 		return
 	_gameplay_sequence_started = true
+	_prepare_run_progress_bounds()
 	## 按需求：开始时立即在标题场景右侧创建第1关
 	_spawn_next_stage()
 
@@ -296,6 +306,8 @@ func _setup_maintitle_anchor() -> void:
 func _calculate_stage_metrics(stage: Node2D) -> Dictionary:
 	var stage_width: float = 0.0
 	var left_offset: float = 0.0
+	var checkpoint_start_local_x: float = 0.0
+	var checkpoint_end_local_x: float = 0.0
 
 	if stage.has_method("get_left_offset"):
 		left_offset = stage.get_left_offset()
@@ -310,9 +322,77 @@ func _calculate_stage_metrics(stage: Node2D) -> Dictionary:
 			stage_width = used_rect.size.x * tile_size.x * stage.scale.x
 			left_offset = used_rect.position.x * tile_size.x * stage.scale.x
 
+	var checkpoint_start_node: Node2D = stage.find_child("CheckPoint_start", true, false) as Node2D
+	if checkpoint_start_node != null:
+		checkpoint_start_local_x = checkpoint_start_node.global_position.x
+
+	var checkpoint_end_node: Node2D = stage.find_child("CheckPoint_end", true, false) as Node2D
+	if checkpoint_end_node != null:
+		checkpoint_end_local_x = checkpoint_end_node.global_position.x
+
 	return {
 		"stage_width": stage_width,
 		"left_offset": left_offset,
+		"checkpoint_start_local_x": checkpoint_start_local_x,
+		"checkpoint_end_local_x": checkpoint_end_local_x,
+	}
+
+
+func _calculate_scene_metrics(scene: PackedScene) -> Dictionary:
+	var stage_instance: Node2D = scene.instantiate() as Node2D
+	if stage_instance == null:
+		return {
+			"stage_width": 0.0,
+			"left_offset": 0.0,
+			"checkpoint_start_local_x": 0.0,
+			"checkpoint_end_local_x": 0.0,
+		}
+	var metrics: Dictionary = _calculate_stage_metrics(stage_instance)
+	stage_instance.free()
+	return metrics
+
+
+func _prepare_run_progress_bounds() -> void:
+	_run_progress_bounds_ready = false
+
+	var safe_stage_count: int = max(gameplay_stage_count, 1)
+	if safe_stage_count <= 0:
+		return
+
+	var current_spawn_x: float = _next_spawn_x
+	var progress_start_x: float = 0.0
+	var progress_end_x: float = 0.0
+
+	for i in range(safe_stage_count):
+		var scene: PackedScene = _get_gameplay_scene_by_index(i)
+		if scene == null:
+			return
+		var metrics: Dictionary = _calculate_scene_metrics(scene)
+		var stage_width: float = float(metrics.get("stage_width", 0.0))
+		var left_offset: float = float(metrics.get("left_offset", 0.0))
+		var stage_position_x: float = current_spawn_x - left_offset
+
+		if i == 0:
+			progress_start_x = stage_position_x + float(metrics.get("checkpoint_start_local_x", 0.0))
+		if i == safe_stage_count - 1:
+			progress_end_x = stage_position_x + float(metrics.get("checkpoint_end_local_x", 0.0))
+
+		current_spawn_x += stage_width
+
+	if progress_end_x <= progress_start_x:
+		return
+
+	_run_progress_start_x = progress_start_x
+	_run_progress_end_x = progress_end_x
+	_run_progress_bounds_ready = true
+	run_progress_bounds_updated.emit(_run_progress_start_x, _run_progress_end_x)
+
+
+func get_run_progress_bounds() -> Dictionary:
+	return {
+		"ready": _run_progress_bounds_ready,
+		"start_x": _run_progress_start_x,
+		"end_x": _run_progress_end_x,
 	}
 
 
