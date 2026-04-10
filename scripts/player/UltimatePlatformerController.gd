@@ -95,6 +95,17 @@ class_name PlatformerController2D
 ## 拥有 "crouch_walk" 动画
 @export var crouch_walk: bool
 
+#INFO 调试显示
+@export_category("Debug")
+## 启用后可通过 I 键切换屏幕顶部的调试状态面板
+@export var enableDebugOverlay: bool = true
+## 调试状态面板相对于屏幕左上角的偏移
+@export var debugOverlayOffset: Vector2 = Vector2(16, 16)
+## 调试状态面板文字大小
+@export_range(10, 48) var debugOverlayFontSize: int = 16
+## 调试状态面板的文字颜色
+@export var debugOverlayFontColor: Color = Color(1, 1, 1, 1)
+
 
 # ---- 内部状态变量 ----
 var appliedGravity: float
@@ -104,6 +115,7 @@ var jumpMagnitude: float = 500.0
 var jumpCount: int
 var jumpWasPressed: bool = false
 var coyoteActive: bool = false
+var _coyote_timer_started: bool = false
 var gravityActive: bool = true
 
 var dashing: bool = false
@@ -121,6 +133,7 @@ var slide_timer: float = 0.0
 var roll_start_velocity: float = 0.0
 var was_rolling_or_sliding: bool = false
 var crouching: bool = false
+var _just_stood_up: bool = false
 
 var twoWayDashHorizontal: bool
 var twoWayDashVertical: bool
@@ -132,6 +145,26 @@ var movementInputMonitoring: Vector2 = Vector2(true, true)
 var anim: AnimatedSprite2D
 var col: CollisionShape2D
 var animScaleLock: Vector2
+var debugOverlayLayer: CanvasLayer
+var debugOverlayPanel: PanelContainer
+var debugOverlayLabel: Label
+var debugOverlayVisible: bool = false
+var debugPreviousVelocityX: float = 0.0
+var debugActualAccelerationX: float = 0.0
+var debugActualDecelerationX: float = 0.0
+var debugCurrentSpeedUpRate: float = 0.0
+var debugCurrentSlowDownRate: float = 0.0
+var debugCurrentReturnRate: float = 0.0
+var debugCurrentMaxSpeed: float = 0.0
+var debugHorizontalState: String = "idle"
+var debugRawKeyLeft: bool = false
+var debugRawKeyRight: bool = false
+var debugRawKeyJump: bool = false
+var debugRawKeyDown: bool = false
+var debugRawKeyDash: bool = false
+var debugWindowFocused: bool = true
+var debugLastKeyEvent: String = "none"
+var debugLastRightKeyEvent: String = "none"
 
 # ---- 输入变量 ----
 var upHold: bool
@@ -151,10 +184,12 @@ func _ready() -> void:
 	col = PlayerCollider
 	_update_data()
 	velocity.x = initialSpeed
+	debugPreviousVelocityX = velocity.x
 	if CollisionFull:
 		CollisionFull.disabled = false
 	if CollisionHalf:
 		CollisionHalf.disabled = true
+	_setup_debug_overlay()
 
 
 func _update_data() -> void:
@@ -226,7 +261,22 @@ func _process(_delta: float) -> void:
 			anim.play("idle")
 
 
+func _input(event: InputEvent) -> void:
+	var key_event: InputEventKey = event as InputEventKey
+	if key_event and !key_event.echo:
+		debugLastKeyEvent = "%s %s" % [_debug_get_key_name(key_event.physical_keycode), "pressed" if key_event.pressed else "released"]
+		if key_event.physical_keycode == KEY_D:
+			debugLastRightKeyEvent = debugLastKeyEvent
+	if !enableDebugOverlay:
+		return
+	if key_event and key_event.pressed and !key_event.echo and key_event.keycode == KEY_I:
+		debugOverlayVisible = !debugOverlayVisible
+		_update_debug_overlay_visibility()
+
+
 func _physics_process(delta: float) -> void:
+	_just_stood_up = false
+
 	#INFO 输入检测
 	leftHold = Input.is_action_pressed("left")
 	rightHold = Input.is_action_pressed("right")
@@ -238,6 +288,12 @@ func _physics_process(delta: float) -> void:
 	runHold = Input.is_action_pressed("run")
 	dashTap = Input.is_action_just_pressed("dash")
 	downTap = Input.is_action_just_pressed("down")
+	debugRawKeyLeft = Input.is_physical_key_pressed(KEY_A)
+	debugRawKeyRight = Input.is_physical_key_pressed(KEY_D)
+	debugRawKeyJump = Input.is_physical_key_pressed(KEY_W)
+	debugRawKeyDown = Input.is_physical_key_pressed(KEY_S)
+	debugRawKeyDash = Input.is_physical_key_pressed(KEY_SPACE)
+	debugWindowFocused = DisplayServer.window_is_focused()
 
 	#INFO 水平移动（跑酷模式 - 始终向前）
 	if !dashing and !rolling:
@@ -245,16 +301,25 @@ func _physics_process(delta: float) -> void:
 		var current_slow_down: float = slowDownRate * 2.0 if crouching else slowDownRate
 		var current_return_rate: float = returnToInitialRate * 2.0 if crouching else returnToInitialRate
 		var current_max_speed: float = maxSpeed / 2.0 if crouching else maxSpeed
+		debugCurrentSpeedUpRate = current_speed_up
+		debugCurrentSlowDownRate = current_slow_down
+		debugCurrentReturnRate = current_return_rate
+		debugCurrentMaxSpeed = current_max_speed
+		debugHorizontalState = "idle"
 
-		if rightHold and movementInputMonitoring.x:
-			velocity.x = min(velocity.x + current_speed_up * delta, current_max_speed)
-		elif leftHold and movementInputMonitoring.y:
+		if leftHold and movementInputMonitoring.y:
 			velocity.x = max(velocity.x - current_slow_down * delta, minSpeed)
+			debugHorizontalState = "left_slowdown"
+		elif rightHold and movementInputMonitoring.x:
+			velocity.x = min(velocity.x + current_speed_up * delta, current_max_speed)
+			debugHorizontalState = "right_accel"
 		else:
 			if velocity.x > initialSpeed:
 				velocity.x = max(velocity.x - current_return_rate * delta, initialSpeed)
+				debugHorizontalState = "return_to_initial_from_above"
 			elif velocity.x < initialSpeed:
 				velocity.x = min(velocity.x + current_return_rate * delta, initialSpeed)
+				debugHorizontalState = "return_to_initial_from_below"
 
 		velocity.x = max(velocity.x, minSpeed)
 
@@ -264,7 +329,7 @@ func _physics_process(delta: float) -> void:
 		maxSpeed = maxSpeedLock
 
 	#INFO 翻滚/滑铲状态机（下键）
-	if is_on_floor() and downTap and !rolling:
+	if is_on_floor() and downTap and !rolling and !dashing:
 		down_press_timer = 0.0
 		down_is_held = true
 		down_triggered_roll = false
@@ -300,13 +365,19 @@ func _physics_process(delta: float) -> void:
 		if ceilingRaycast.is_colliding():
 			crouching = true
 		elif crouching:
-			crouching = !_can_stand_up()
+			var can_stand: bool = _can_stand_up()
+			if can_stand:
+				_just_stood_up = true
+			crouching = !can_stand
 		else:
 			crouching = false
 	else:
 		if ceilingRaycast and !ceilingRaycast.is_colliding():
 			if crouching:
-				crouching = !_can_stand_up()
+				var can_stand: bool = _can_stand_up()
+				if can_stand:
+					_just_stood_up = true
+				crouching = !can_stand
 			else:
 				crouching = false
 
@@ -360,8 +431,8 @@ func _physics_process(delta: float) -> void:
 
 	if jumps == 1:
 		if !is_on_floor() and !is_on_wall():
-			if coyoteTime > 0:
-				coyoteActive = true
+			if coyoteTime > 0 and coyoteActive and !_coyote_timer_started:
+				_coyote_timer_started = true
 				_coyote_time()
 
 		if jumpTap and !is_on_wall():
@@ -379,6 +450,7 @@ func _physics_process(delta: float) -> void:
 		if is_on_floor():
 			jumpCount = jumps
 			coyoteActive = true
+			_coyote_timer_started = false
 			if jumpWasPressed:
 				_jump()
 
@@ -438,7 +510,11 @@ func _physics_process(delta: float) -> void:
 	if dashing and leftTap and dashCancel:
 		_end_dash()
 
+	var _pre_move_vx: float = velocity.x
 	move_and_slide()
+	if _just_stood_up and velocity.x > _pre_move_vx:
+		velocity.x = _pre_move_vx
+	_update_debug_overlay(delta)
 
 
 # ---- 跳跃辅助函数 ----
@@ -505,9 +581,156 @@ func _on_roll_end() -> void:
 func _can_stand_up() -> bool:
 	if !CollisionFull or !CollisionHalf:
 		return true
-	CollisionHalf.disabled = true
-	CollisionFull.disabled = false
-	var blocked: bool = test_move(transform, Vector2.ZERO)
-	CollisionFull.disabled = true
-	CollisionHalf.disabled = false
-	return !blocked
+	var space_state: PhysicsDirectSpaceState2D = get_world_2d().direct_space_state
+	var query := PhysicsShapeQueryParameters2D.new()
+	query.shape = CollisionFull.shape
+	query.transform = CollisionFull.global_transform
+	query.collision_mask = collision_mask
+	query.exclude = [get_rid()]
+	return space_state.intersect_shape(query, 1).is_empty()
+
+
+func _setup_debug_overlay() -> void:
+	if !enableDebugOverlay:
+		return
+	debugOverlayLayer = CanvasLayer.new()
+	debugOverlayLayer.layer = 100
+	debugOverlayLayer.name = "DebugOverlayLayer"
+	add_child(debugOverlayLayer)
+
+	debugOverlayPanel = PanelContainer.new()
+	debugOverlayPanel.name = "DebugOverlayPanel"
+	debugOverlayPanel.position = debugOverlayOffset
+	debugOverlayPanel.visible = debugOverlayVisible
+	debugOverlayPanel.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var panel_style: StyleBoxFlat = StyleBoxFlat.new()
+	panel_style.bg_color = Color(0, 0, 0, 0.5)
+	panel_style.border_color = Color(1, 1, 1, 0.2)
+	panel_style.border_width_left = 1
+	panel_style.border_width_top = 1
+	panel_style.border_width_right = 1
+	panel_style.border_width_bottom = 1
+	panel_style.corner_radius_top_left = 8
+	panel_style.corner_radius_top_right = 8
+	panel_style.corner_radius_bottom_left = 8
+	panel_style.corner_radius_bottom_right = 8
+	panel_style.content_margin_left = 12
+	panel_style.content_margin_top = 10
+	panel_style.content_margin_right = 12
+	panel_style.content_margin_bottom = 10
+	debugOverlayPanel.add_theme_stylebox_override("panel", panel_style)
+	debugOverlayLayer.add_child(debugOverlayPanel)
+
+	debugOverlayLabel = Label.new()
+	debugOverlayLabel.name = "DebugOverlayLabel"
+	debugOverlayLabel.visible = debugOverlayVisible
+	debugOverlayLabel.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	debugOverlayLabel.add_theme_font_size_override("font_size", debugOverlayFontSize)
+	debugOverlayLabel.add_theme_color_override("font_color", debugOverlayFontColor)
+	debugOverlayLabel.add_theme_color_override("font_shadow_color", Color(0, 0, 0, 0.75))
+	debugOverlayLabel.add_theme_constant_override("shadow_offset_x", 1)
+	debugOverlayLabel.add_theme_constant_override("shadow_offset_y", 1)
+	debugOverlayLabel.add_theme_constant_override("line_spacing", 6)
+	debugOverlayPanel.add_child(debugOverlayLabel)
+	_refresh_debug_overlay_text()
+
+
+func _update_debug_overlay_visibility() -> void:
+	if debugOverlayPanel:
+		debugOverlayPanel.visible = debugOverlayVisible
+	if debugOverlayLabel:
+		debugOverlayLabel.visible = debugOverlayVisible
+		if debugOverlayVisible:
+			_refresh_debug_overlay_text()
+
+
+func _update_debug_overlay(delta: float) -> void:
+	if delta > 0:
+		var horizontal_delta: float = velocity.x - debugPreviousVelocityX
+		var horizontal_per_second: float = horizontal_delta / delta
+		debugActualAccelerationX = max(horizontal_per_second, 0.0)
+		debugActualDecelerationX = max(-horizontal_per_second, 0.0)
+	debugPreviousVelocityX = velocity.x
+	if debugOverlayVisible:
+		_refresh_debug_overlay_text()
+
+
+func _refresh_debug_overlay_text() -> void:
+	if !debugOverlayLabel:
+		return
+	if debugOverlayPanel:
+		debugOverlayPanel.position = debugOverlayOffset
+	debugOverlayLabel.text = "\n".join([
+		"Debug HUD [I]",
+		"------------------------------",
+		"[Action Input]",
+		"left:  %-5s  right: %-5s  up: %-5s  down: %-5s" % [
+			str(leftHold),
+			str(rightHold),
+			str(upHold),
+			str(downHold)
+		],
+		"run:   %-5s  dash_tap: %-5s  jump_tap: %-5s" % [
+			str(runHold),
+			str(dashTap),
+			str(jumpTap)
+		],
+		"",
+		"[Physical Key]",
+		"A: %-5s  D: %-5s  W: %-5s  S: %-5s  Space: %-5s" % [
+			str(debugRawKeyLeft),
+			str(debugRawKeyRight),
+			str(debugRawKeyJump),
+			str(debugRawKeyDown),
+			str(debugRawKeyDash)
+		],
+		"window_focused: %s" % str(debugWindowFocused),
+		"",
+		"[Controller State]",
+		"floor: %-5s  wall: %-5s  crouching: %-5s" % [
+			str(is_on_floor()),
+			str(is_on_wall()),
+			str(crouching)
+		],
+		"sliding: %-5s  rolling: %-5s  dashing: %-5s" % [
+			str(is_sliding),
+			str(rolling),
+			str(dashing)
+		],
+		"state: %s  just_stood: %s" % [debugHorizontalState, str(_just_stood_up)],
+		"",
+		"[Movement]",
+		"velocity_x: %7.2f   velocity_y: %7.2f" % [velocity.x, velocity.y],
+		"actual_accel_x: %7.2f   actual_decel_x: %7.2f" % [debugActualAccelerationX, debugActualDecelerationX],
+		"speed_up: %7.2f   slow_down: %7.2f" % [
+			debugCurrentSpeedUpRate,
+			debugCurrentSlowDownRate
+		],
+		"return_rate: %7.2f   max_current: %7.2f" % [
+			debugCurrentReturnRate,
+			debugCurrentMaxSpeed
+		],
+		"initial: %7.2f   min: %7.2f" % [initialSpeed, minSpeed],
+		"",
+		"[Recent Event]",
+		"last_key:   %s" % debugLastKeyEvent,
+		"last_right: %s" % debugLastRightKeyEvent
+	])
+
+
+func _debug_get_key_name(physical_keycode: Key) -> String:
+	match physical_keycode:
+		KEY_A:
+			return "A"
+		KEY_D:
+			return "D"
+		KEY_W:
+			return "W"
+		KEY_S:
+			return "S"
+		KEY_SPACE:
+			return "Space"
+		KEY_I:
+			return "I"
+		_:
+			return str(physical_keycode)
